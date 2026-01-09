@@ -1,4 +1,4 @@
-name: Esecuzione Test e Coverage
+name: Test, Coverage & Readme Update
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # Permesso necessario per salvare il badge nel repository
+  contents: write # Fondamentale per poter modificare il README e salvare i file
 
 jobs:
   build-and-test:
@@ -25,34 +25,47 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    # 3. Esegue i test (JaCoCo si attiverà automaticamente grazie alla modifica nel pom.xml)
+    # 3. Esegue i Test (e genera i dati per la coverage)
     - name: Esegui Test con Maven
       working-directory: ./HSLColor_Tests
       run: mvn test
 
-    # 4. Genera il Badge di Copertura
-    # Usa un'azione pronta che legge il file CSV generato da JaCoCo
+    # 4. Genera i Badge di Copertura (e li salva nella cartella badges)
     - name: Generate JaCoCo Badge
       id: jacoco
       uses: cicirello/jacoco-badge-generator@v2
       with:
         generate-branches-badge: true
-        # Qui indichiamo dove JaCoCo ha salvato il report (nella tua sottocartella)
         jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
-        # Dove salvare le immagini dei badge? Nella cartella 'badges' dentro la sottocartella
         badges-directory: HSLColor_Tests/badges
 
-    # 5. Mostra il risultato nel log (Utile per controllo rapido)
-    - name: Log coverage percentage
+    # 5. Analisi Test Smells (tsDetect)
+    - name: Analisi Test Smells
+      working-directory: ./HSLColor_Tests
       run: |
-        echo "coverage = ${{ steps.jacoco.outputs.coverage }}"
-        echo "branch coverage = ${{ steps.jacoco.outputs.branches }}"
+        # Scarica tsDetect
+        wget https://github.com/TestSmells/TSDetect/releases/download/1.0.0/TSDetect.jar
+        
+        # Esegue l'analisi (output nel file test_smells.csv)
+        java -jar TSDetect.jar -p . -o test_smells.csv
 
-    # 6. Salva (Committa) il badge nel repository
-    # Se i test passano, questo passaggio carica le immagini .svg create su GitHub
-    - name: Commit Badge
-      if: github.ref == 'refs/heads/main' # Esegui solo sul branch main
+    # 6. STEP NUOVO: Scrive i risultati nel README.md
+    - name: Aggiorna README con numero Smells
+      run: |
+        # Conta le righe del CSV (tolta l'intestazione) per sapere quanti smell ci sono
+        # Se il file è vuoto o ha solo l'intestazione, conta 0.
+        SMELL_COUNT=$(tail -n +2 HSLColor_Tests/test_smells.csv | wc -l)
+        
+        echo "Smells trovati: $SMELL_COUNT"
+        
+        # Usa 'sed' per sostituire il testo tra i commenti START_SMELLS ed END_SMELLS
+        # Nota: Funziona sul file README.md nella radice
+        sed -i '//,//c\\nAllo stato attuale sono stati rilevati **'"$SMELL_COUNT"'** Test Smells.\n' README.md
+
+    # 7. Salva tutto (Badge, CSV e README modificato)
+    - name: Commit delle modifiche
+      if: always()
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit_message: "Auto-update coverage badges"
-        file_pattern: "HSLColor_Tests/badges/*.svg"
+        commit_message: "Auto-update: README con Coverage e Smells count"
+        file_pattern: "HSLColor_Tests/badges/*.svg HSLColor_Tests/*.csv README.md"
