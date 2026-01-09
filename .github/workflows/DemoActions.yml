@@ -1,8 +1,9 @@
-name: Test, Coverage & Readme Update
+name: Demo Actions - Test Coverage e Test Smells
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -13,94 +14,69 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Scarica il codice
-    - name: Checkout del codice
-      uses: actions/checkout@v4
+      - name: Checkout del codice
+        uses: actions/checkout@v4
 
-    # 2. Installa Java 11
-    - name: Set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        cache: maven
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
 
-    # 3. Esegue Test e Coverage
-    - name: Esegui Test con Maven
-      working-directory: ./HSLColor_Tests
-      run: mvn test
+      - name: Esegui test con Maven
+        working-directory: HSLColor_Tests
+        run: mvn test
 
-    # 4. Genera i Badge di Copertura
-    - name: Generate JaCoCo Badge
-      id: jacoco
-      uses: cicirello/jacoco-badge-generator@v2
-      with:
-        generate-branches-badge: true
-        jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
-        badges-directory: HSLColor_Tests/badges
+      - name: Genera badge di coverage (JaCoCo)
+        uses: cicirello/jacoco-badge-generator@v2
+        with:
+          jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
+          badges-directory: HSLColor_Tests/badges
+          generate-branches-badge: true
 
-    # 5. Analisi Test Smells (tsDetect - versione corretta)
-    - name: Analisi Test Smells
-      working-directory: ./HSLColor_Tests
-      continue-on-error: true
-      run: |
-        # 1. Scarica il tool
-        wget https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
-
-        # 2. Definisce le directory
-        TEST_DIR="$(pwd)/src/test/java"
-        PROD_DIR="$(pwd)/src/main/java"
-
-        echo "Directory Test: $TEST_DIR"
-        echo "Directory Produzione: $PROD_DIR"
-
-        # Controllo di sicurezza
-        if [ ! -d "$TEST_DIR" ] || [ ! -d "$PROD_DIR" ]; then
-          echo "ERRORE: Directory test o produzione non trovata"
+      - name: Analisi Test Smells (tsDetect)
+        working-directory: HSLColor_Tests
+        continue-on-error: true
+        run: |
+          echo "=== DEBUG STRUTTURA ==="
+          pwd
           ls -R
-          exit 1
-        fi
+          echo "======================="
 
-        # 3. Crea il CSV nel formato corretto
-        echo "ProjectName,TestDirPath,ProductionDirPath" > input.csv
-        echo "HSLProject,$TEST_DIR,$PROD_DIR" >> input.csv
+          wget https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
 
-        echo "--- CONTENUTO INPUT.CSV ---"
-        cat input.csv
+          TEST_DIR="$(pwd)/src/test/java"
+          PROD_DIR="$(pwd)/src/main/java"
 
-        # 4. Esegue l'analisi
-        java -jar TestSmellDetector.jar -f input.csv -o smells_report.csv
+          echo "Test dir: $TEST_DIR"
+          echo "Prod dir: $PROD_DIR"
 
-        # 5. Mostra risultato
-        if [ -f smells_report.csv ]; then
-          echo "--- RISULTATO ANALISI ---"
-          cat smells_report.csv
-        else
-          echo "Attenzione: Il report non è stato generato."
-          exit 1
-        fi
+          if [ ! -d "$TEST_DIR" ] || [ ! -d "$PROD_DIR" ]; then
+            echo "ERRORE: directory non trovate"
+            exit 1
+          fi
 
-    # 6. Scrive i risultati nel README.md
-    - name: Aggiorna README con numero Smells
-      working-directory: ./
-      run: |
-        # Verifica se il file esiste per evitare errori
-        if [ -f HSLColor_Tests/smells_report.csv ]; then
-          SMELL_COUNT=$(grep -o -i "true" HSLColor_Tests/smells_report.csv | wc -l)
-        else
-          SMELL_COUNT=0
-          echo "Attenzione: File report smells non trovato, imposto count a 0"
-        fi
-        
-        echo "Totale Smells trovati: $SMELL_COUNT"
-        
-        # Aggiorna il README.md (usiamo una sintassi sed a una riga per sicurezza)
-        sed -i '//,//c\\nAllo stato attuale sono stati rilevati **'"$SMELL_COUNT"'** Test Smells.\n' README.md
+          echo "ProjectName,TestDirPath,ProductionDirPath" > input.csv
+          echo "HSLProject,$TEST_DIR,$PROD_DIR" >> input.csv
 
-    # 7. Salva tutto
-    - name: Commit delle modifiche
-      if: always()
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        commit_message: "Auto-update: README con Coverage e Smells count"
-        file_pattern: "HSLColor_Tests/badges/*.svg README.md"
+          cat input.csv
+
+          java -jar TestSmellDetector.jar -f input.csv -o smells_report.csv
+
+          if [ -f smells_report.csv ]; then
+            echo "=== REPORT SMELLS ==="
+            cat smells_report.csv
+          else
+            echo "Report non generato"
+            exit 1
+          fi
+
+      - name: Commit automatico dei risultati
+        if: always()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-update: badge coverage e test smells"
+          file_pattern: |
+            HSLColor_Tests/badges/*.svg
+            HSLColor_Tests/smells_report.csv
