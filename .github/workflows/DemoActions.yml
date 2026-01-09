@@ -39,26 +39,48 @@ jobs:
         jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
         badges-directory: HSLColor_Tests/badges
 
-    # 5. Analisi Test Smells (Versione TestSmellDetector)
+   # 5. Analisi Test Smells (Versione Intelligente)
     - name: Analisi Test Smells
       working-directory: ./HSLColor_Tests
       continue-on-error: true
       run: |
-        # 1. Scarica il tool corretto (TestSmellDetector)
+        # 1. Scarica il tool
         wget https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
         
-        # 2. CREA IL FILE DI INPUT CSV (Fondamentale!)
-        # Formato richiesto: NomeProgetto, PathTest, PathProduzione
-        # Qui mappiamo manualmente i tuoi file. Se ne aggiungi altri, dovrai aggiornare questa riga o fare uno script più complesso.
-        echo "HSLProject,src/test/java/org/example/TestHSLColor.java,src/main/java/org/example/HSLColor.java" > input.csv
+        # 2. TROVA I FILE AUTOMATICAMENTE
+        # Cerchiamo il file che inizia per "Test" e finisce per ".java"
+        TEST_FILE=$(find $(pwd) -name "Test*.java" | head -n 1)
+        # Cerchiamo il file di produzione (HSLColor.java)
+        PROD_FILE=$(find $(pwd) -name "HSLColor.java" | head -n 1)
         
-        # 3. Esegue l'analisi usando il file input.csv appena creato
-        # Il flag -N permette di non usare l'header nel CSV di input
+        echo "File di Test trovato: $TEST_FILE"
+        echo "File di Produzione trovato: $PROD_FILE"
+        
+        # Se non trova i file, ferma tutto e mostraci l'errore
+        if [ -z "$TEST_FILE" ] || [ -z "$PROD_FILE" ]; then
+          echo "ERRORE: Non riesco a trovare i file Java. Controlla la struttura delle cartelle."
+          ls -R
+          exit 1
+        fi
+
+        # 3. Crea il CSV usando i percorsi assoluti appena trovati
+        echo "HSLProject,$TEST_FILE,$PROD_FILE" > input.csv
+        
+        # Mostriamolo per debug
+        echo "--- CONTENUTO INPUT.CSV ---"
+        cat input.csv
+        
+        # 4. Esegue l'analisi
         java -jar TestSmellDetector.jar -f input.csv -o smells_report.csv
         
-        # Mostra il report grezzo nel log (per debug)
-        echo "--- CSV GENERATO ---"
-        cat smells_report.csv
+        # 5. Mostra il risultato
+        echo "--- RISULTATO ANALISI ---"
+        if [ -f smells_report.csv ]; then
+            cat smells_report.csv
+        else
+            echo "Attenzione: Il report non è stato generato."
+            exit 1
+        fi
 
     # 6. Scrive i risultati nel README.md
     - name: Aggiorna README con numero Smells
