@@ -1,58 +1,87 @@
-name: Esecuzione Test e Coverage
+name: Demo Actions - Test Coverage e Test Smells
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: write  # Permesso necessario per salvare il badge nel repository
+  contents: write
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Scarica il codice
-    - name: Checkout del codice
-      uses: actions/checkout@v4
+      - name: Checkout del codice
+        uses: actions/checkout@v4
 
-    # 2. Installa Java 11
-    - name: Set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        cache: maven
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
 
-    # 3. Esegue i test (JaCoCo si attiverà automaticamente grazie alla modifica nel pom.xml)
-    - name: Esegui Test con Maven
-      working-directory: ./HSLColor_Tests
-      run: mvn test
+      - name: Esegui test con Maven
+        working-directory: HSLColor_Tests
+        run: mvn test
 
-    # 4. Genera il Badge di Copertura
-    # Usa un'azione pronta che legge il file CSV generato da JaCoCo
-    - name: Generate JaCoCo Badge
-      id: jacoco
-      uses: cicirello/jacoco-badge-generator@v2
-      with:
-        generate-branches-badge: true
-        # Qui indichiamo dove JaCoCo ha salvato il report (nella tua sottocartella)
-        jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
-        # Dove salvare le immagini dei badge? Nella cartella 'badges' dentro la sottocartella
-        badges-directory: HSLColor_Tests/badges
+      - name: Genera badge di coverage (JaCoCo)
+        uses: cicirello/jacoco-badge-generator@v2
+        with:
+          jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
+          badges-directory: HSLColor_Tests/badges
+          generate-branches-badge: true
 
-    # 5. Mostra il risultato nel log (Utile per controllo rapido)
-    - name: Log coverage percentage
-      run: |
-        echo "coverage = ${{ steps.jacoco.outputs.coverage }}"
-        echo "branch coverage = ${{ steps.jacoco.outputs.branches }}"
+      - name: Analisi Test Smells (tsDetect)
+        working-directory: HSLColor_Tests
+        continue-on-error: true
+        run: |
+          echo "=== 1. PREPARAZIONE AMBIENTE ==="
+          
+          # Scarichiamo l'ultima versione stabile direttamente dal branch main
+          # (La v2.2 aveva il bug "Is a directory")
+          wget -O TestSmellDetector.jar https://github.com/TestSmells/TestSmellDetector/raw/main/TestSmellDetector.jar
+          
+          TEST_DIR="$(pwd)/src/test/java"
+          PROD_DIR="$(pwd)/src/main/java"
+          
+          # Verifica di sicurezza (come nel debug)
+          if [ ! -d "$TEST_DIR" ]; then echo "Errore: Directory Test non trovata"; exit 1; fi
+          
+          echo "=== 2. CREAZIONE INPUT.CSV ==="
+          # Creiamo il file esattamente come nel test che ha funzionato
+          echo "ProjectName,TestDirPath,ProductionDirPath" > input.csv
+          echo "HSLProject,$TEST_DIR,$PROD_DIR" >> input.csv
+          cat input.csv
+          
+          echo "=== 3. ESECUZIONE ANALISI ==="
+          # Eseguiamo il jar passando il file csv come argomento
+          java -jar TestSmellDetector.jar input.csv
+          
+          echo "=== 4. GESTIONE RISULTATI ==="
+          # Il tool potrebbe generare un file con nome diverso (es. HSLProject_TestSmellResults.csv)
+          # Noi prendiamo QUALSIASI csv generato che non sia input.csv e lo rinominiamo
+          TARGET_FILE=$(ls *.csv | grep -v "input.csv" | head -n 1)
+          
+          if [ ! -z "$TARGET_FILE" ]; then
+            echo "Report trovato: $TARGET_FILE"
+            mv "$TARGET_FILE" smells_report.csv
+            echo "Report rinominato correttamente in smells_report.csv"
+            cat smells_report.csv
+          else
+            echo "ATTENZIONE: Nessun report CSV generato."
+            # Non facciamo exit 1 qui per permettere al commit successivo di funzionare 
+            # (se magari ha generato solo i badge)
+          fi
 
-    # 6. Salva (Committa) il badge nel repository
-    # Se i test passano, questo passaggio carica le immagini .svg create su GitHub
-    - name: Commit Badge
-      if: github.ref == 'refs/heads/main' # Esegui solo sul branch main
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        commit_message: "Auto-update coverage badges"
-        file_pattern: "HSLColor_Tests/badges/*.svg"
+      - name: Commit automatico dei risultati
+        if: always()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-update: badge coverage e test smells"
+          file_pattern: |
+            HSLColor_Tests/badges/*.svg
+            HSLColor_Tests/smells_report.csv
