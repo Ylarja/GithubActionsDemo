@@ -35,7 +35,7 @@ jobs:
           badges-directory: HSLColor_Tests/badges
           generate-branches-badge: true
 
-     - name: Analisi Test Smells (tsDetect)
+      - name: Analisi Test Smells (tsDetect)
         working-directory: HSLColor_Tests
         continue-on-error: true
         run: |
@@ -66,12 +66,9 @@ jobs:
           cat input.csv
           
           # Esecuzione del jar. 
-          # Nota: Molte versioni di questo tool generano l'output automaticamente (es. TestSmellResults.csv)
-          # o accettano il file di input semplicemente come argomento.
           java -jar TestSmellDetector.jar input.csv
           
-          # Verifica del file generato (il nome potrebbe variare, spesso è TestSmellResults.csv o simile)
-          # Rinominiamo qualsiasi CSV generato in smells_report.csv per coerenza con lo step successivo
+          # Verifica del file generato e rinomina per coerenza
           if ls *.csv | grep -v "input.csv"; then
             mv *.csv smells_report.csv 2>/dev/null || true
             echo "=== REPORT SMELLS GENERATO ==="
@@ -80,7 +77,7 @@ jobs:
             echo "Report non generato"
             exit 1
           fi
-          
+
       - name: Commit automatico dei risultati
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
