@@ -42,8 +42,9 @@ jobs:
           echo "=== DEBUG STRUTTURA ==="
           pwd
           
-          # Scarica il tool
-          wget https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
+          # 1. Scarica una versione PIÙ RECENTE e stabile del tool
+          # La v2.2 ha problemi noti con la scansione diretta delle directory su CI
+          wget https://github.com/TestSmells/TestSmellDetector/raw/main/TestSmellDetector.jar
           
           # Definisce i percorsi assoluti
           TEST_DIR="$(pwd)/src/test/java"
@@ -58,25 +59,30 @@ jobs:
             exit 1
           fi
           
-          # 1. Creiamo il CSV SENZA intestazioni (headers)
-          # Il formato richiesto è: ProjectName,TestDirectory,ProductionDirectory
-          echo "HSLProject,$TEST_DIR,$PROD_DIR" > input.csv
+          # 2. Creiamo il CSV CON LE INTESTAZIONI (Le versioni recenti le gestiscono meglio)
+          # Formato: ProjectName,TestDirectory,ProductionDirectory
+          echo "ProjectName,TestDirPath,ProductionDirPath" > input.csv
+          echo "HSLProject,$TEST_DIR,$PROD_DIR" >> input.csv
           
           echo "=== CONTENUTO INPUT.CSV ==="
           cat input.csv
           
-          # 2. Esecuzione del jar CON I FLAG
-          # -f indica il file di input
-          # -o indica il nome del file di output desiderato
-          java -jar TestSmellDetector.jar -f input.csv -o smells_report.csv
+          # 3. Esecuzione del jar
+          # Usiamo la sintassi standard per le versioni recenti
+          java -jar TestSmellDetector.jar input.csv
           
-          # Verifica del file generato
-          if [ -f smells_report.csv ]; then
+          # 4. Gestione output (Il tool potrebbe generare TestSmellResults.csv o simili)
+          # Cerchiamo qualsiasi CSV creato che non sia input.csv
+          OUTPUT_FILE=$(ls *.csv | grep -v "input.csv" | head -n 1)
+          
+          if [ ! -z "$OUTPUT_FILE" ]; then
+            echo "Trovato report: $OUTPUT_FILE"
+            mv "$OUTPUT_FILE" smells_report.csv
             echo "=== REPORT SMELLS GENERATO ==="
             cat smells_report.csv
           else
-            echo "Report non generato. Controlla se è stato creato con un altro nome:"
-            ls -la *.csv
+            echo "ERRORE: Nessun report generato."
+            ls -la
             exit 1
           fi
 
