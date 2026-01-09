@@ -39,7 +39,7 @@ jobs:
         jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
         badges-directory: HSLColor_Tests/badges
 
-   # 5. Analisi Test Smells (Versione Intelligente)
+# 5. Analisi Test Smells (Versione Corretta con Header)
     - name: Analisi Test Smells
       working-directory: ./HSLColor_Tests
       continue-on-error: true
@@ -48,26 +48,23 @@ jobs:
         wget https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
         
         # 2. TROVA I FILE AUTOMATICAMENTE
-        # Cerchiamo il file che inizia per "Test" e finisce per ".java"
         TEST_FILE=$(find $(pwd) -name "Test*.java" | head -n 1)
-        # Cerchiamo il file di produzione (HSLColor.java)
         PROD_FILE=$(find $(pwd) -name "HSLColor.java" | head -n 1)
         
-        echo "File di Test trovato: $TEST_FILE"
-        echo "File di Produzione trovato: $PROD_FILE"
-        
-        # Se non trova i file, ferma tutto e mostraci l'errore
+        # Controllo di sicurezza
         if [ -z "$TEST_FILE" ] || [ -z "$PROD_FILE" ]; then
-          echo "ERRORE: Non riesco a trovare i file Java. Controlla la struttura delle cartelle."
-          ls -R
+          echo "ERRORE: Non riesco a trovare i file Java."
           exit 1
         fi
 
-        # 3. Crea il CSV usando i percorsi assoluti appena trovati
-        echo "HSLProject,$TEST_FILE,$PROD_FILE" > input.csv
+        # 3. Crea il CSV con INTESTAZIONE (Fix per l'errore)
+        # La prima riga viene ignorata dal tool, quindi mettiamo dei titoli
+        echo "ProjectName,TestFilePath,ProductionFilePath" > input.csv
+        # Aggiungiamo la riga vera con i dati
+        echo "HSLProject,$TEST_FILE,$PROD_FILE" >> input.csv
         
-        # Mostriamolo per debug
-        echo "--- CONTENUTO INPUT.CSV ---"
+        # Debug: Mostra il file creato
+        echo "--- CONTENUTO INPUT.CSV FINALE ---"
         cat input.csv
         
         # 4. Esegue l'analisi
