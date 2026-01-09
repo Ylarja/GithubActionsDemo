@@ -1,0 +1,30 @@
+name: Esecuzione Test JUnit Progetto HSLColor
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Questo ti permette di lanciare lo script anche manualmente cliccando un bottone
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Scarica tutto il contenuto della tua repository
+    - name: Checkout del codice
+      uses: actions/checkout@v4
+
+    # 2. Installa Java 11 (come hai specificato)
+    - name: Set up JDK 11
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        cache: maven # Velocizza il download delle dipendenze per le volte successive
+
+    # 3. Esegue i test spostandosi nella cartella corretta
+    - name: Esegui Test con Maven
+      run: mvn test
+      working-directory: ./HSLColor_Tests 
+      # 👆 IMPORTANTE: Questo dice alla action di entrare nella sottocartella 
+      # prima di lanciare il comando. Senza questo, non troverebbe il pom.xml.
