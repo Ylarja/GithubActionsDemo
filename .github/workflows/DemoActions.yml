@@ -35,43 +35,52 @@ jobs:
           badges-directory: HSLColor_Tests/badges
           generate-branches-badge: true
 
-      - name: Analisi Test Smells (tsDetect)
+     - name: Analisi Test Smells (tsDetect)
         working-directory: HSLColor_Tests
         continue-on-error: true
         run: |
           echo "=== DEBUG STRUTTURA ==="
           pwd
-          ls -R
-          echo "======================="
-
+          
+          # Scarica il tool
           wget https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
-
+          
+          # Definisce i percorsi assoluti
           TEST_DIR="$(pwd)/src/test/java"
           PROD_DIR="$(pwd)/src/main/java"
-
+          
           echo "Test dir: $TEST_DIR"
           echo "Prod dir: $PROD_DIR"
-
+          
+          # Verifica esistenza directory
           if [ ! -d "$TEST_DIR" ] || [ ! -d "$PROD_DIR" ]; then
             echo "ERRORE: directory non trovate"
             exit 1
           fi
-
-          echo "ProjectName,TestDirPath,ProductionDirPath" > input.csv
-          echo "HSLProject,$TEST_DIR,$PROD_DIR" >> input.csv
-
+          
+          # CORREZIONE: Creiamo il CSV SENZA intestazioni (headers)
+          # Formato: ProjectName,TestDirectory,ProductionDirectory
+          echo "HSLProject,$TEST_DIR,$PROD_DIR" > input.csv
+          
+          echo "=== CONTENUTO INPUT.CSV ==="
           cat input.csv
-
-          java -jar TestSmellDetector.jar -f input.csv -o smells_report.csv
-
-          if [ -f smells_report.csv ]; then
-            echo "=== REPORT SMELLS ==="
+          
+          # Esecuzione del jar. 
+          # Nota: Molte versioni di questo tool generano l'output automaticamente (es. TestSmellResults.csv)
+          # o accettano il file di input semplicemente come argomento.
+          java -jar TestSmellDetector.jar input.csv
+          
+          # Verifica del file generato (il nome potrebbe variare, spesso è TestSmellResults.csv o simile)
+          # Rinominiamo qualsiasi CSV generato in smells_report.csv per coerenza con lo step successivo
+          if ls *.csv | grep -v "input.csv"; then
+            mv *.csv smells_report.csv 2>/dev/null || true
+            echo "=== REPORT SMELLS GENERATO ==="
             cat smells_report.csv
           else
             echo "Report non generato"
             exit 1
           fi
-
+          
       - name: Commit automatico dei risultati
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
