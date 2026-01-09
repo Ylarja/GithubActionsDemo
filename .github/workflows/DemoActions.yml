@@ -41,42 +41,46 @@ jobs:
         run: |
           echo "=== 1. PREPARAZIONE AMBIENTE ==="
           
-          # Scarichiamo l'ultima versione stabile direttamente dal branch main
-          # (La v2.2 aveva il bug "Is a directory")
-          wget -O TestSmellDetector.jar https://github.com/TestSmells/TestSmellDetector/raw/main/TestSmellDetector.jar
+          # Scarichiamo la versione 2.2 che è stabile e sappiamo dove si trova
+          wget -O TestSmellDetector.jar https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
           
-          TEST_DIR="$(pwd)/src/test/java"
-          PROD_DIR="$(pwd)/src/main/java"
+          # TRUCCO: Usiamo percorsi RELATIVI invece di assoluti per evitare il bug "Is a directory"
+          TEST_DIR="src/test/java"
+          PROD_DIR="src/main/java"
           
-          # Verifica di sicurezza (come nel debug)
-          if [ ! -d "$TEST_DIR" ]; then echo "Errore: Directory Test non trovata"; exit 1; fi
+          echo "Test dir (relativa): $TEST_DIR"
+          echo "Prod dir (relativa): $PROD_DIR"
           
           echo "=== 2. CREAZIONE INPUT.CSV ==="
-          # Creiamo il file esattamente come nel test che ha funzionato
-          echo "ProjectName,TestDirPath,ProductionDirPath" > input.csv
-          echo "HSLProject,$TEST_DIR,$PROD_DIR" >> input.csv
+          # Creiamo il file SENZA intestazione (la v2.2 preferisce così)
+          # Formato: ProjectName,TestDir,ProdDir
+          echo "HSLProject,$TEST_DIR,$PROD_DIR" > input.csv
+          
+          echo "Contenuto input.csv:"
           cat input.csv
           
           echo "=== 3. ESECUZIONE ANALISI ==="
-          # Eseguiamo il jar passando il file csv come argomento
-          java -jar TestSmellDetector.jar input.csv
+          # Eseguiamo il jar passando il file csv con il flag -f
+          java -jar TestSmellDetector.jar -f input.csv
           
           echo "=== 4. GESTIONE RISULTATI ==="
-          # Il tool potrebbe generare un file con nome diverso (es. HSLProject_TestSmellResults.csv)
-          # Noi prendiamo QUALSIASI csv generato che non sia input.csv e lo rinominiamo
+          # Cerchiamo qualsiasi CSV generato che non sia quello di input
           TARGET_FILE=$(ls *.csv | grep -v "input.csv" | head -n 1)
           
           if [ ! -z "$TARGET_FILE" ]; then
             echo "Report trovato: $TARGET_FILE"
             mv "$TARGET_FILE" smells_report.csv
-            echo "Report rinominato correttamente in smells_report.csv"
-            cat smells_report.csv
+            echo "Report rinominato in smells_report.csv"
+            
+            # Stampiamo le prime righe per vedere se ha funzionato
+            echo "Anteprima Report:"
+            head -n 5 smells_report.csv
           else
             echo "ATTENZIONE: Nessun report CSV generato."
-            # Non facciamo exit 1 qui per permettere al commit successivo di funzionare 
-            # (se magari ha generato solo i badge)
+            ls -la
+            exit 1
           fi
-
+          
       - name: Commit automatico dei risultati
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
