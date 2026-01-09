@@ -8,5 +8,11 @@ Qui trovi i risultati automatici dell'ultima esecuzione dei test.
 
 ### 2. Test Smells (Qualità dei Test)
 Dati non ancora disponibili.
+
+<!-- START_SMELLS -->
+Allo stato attuale sono stati rilevati **X** Test Smells.
+<!-- END_SMELLS -->
+
+
 ---
 *Report generato automaticamente da GitHub Actions.*
