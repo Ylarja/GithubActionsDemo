@@ -58,23 +58,25 @@ jobs:
             exit 1
           fi
           
-          # CORREZIONE: Creiamo il CSV SENZA intestazioni (headers)
-          # Formato: ProjectName,TestDirectory,ProductionDirectory
+          # 1. Creiamo il CSV SENZA intestazioni (headers)
+          # Il formato richiesto è: ProjectName,TestDirectory,ProductionDirectory
           echo "HSLProject,$TEST_DIR,$PROD_DIR" > input.csv
           
           echo "=== CONTENUTO INPUT.CSV ==="
           cat input.csv
           
-          # Esecuzione del jar. 
-          java -jar TestSmellDetector.jar input.csv
+          # 2. Esecuzione del jar CON I FLAG
+          # -f indica il file di input
+          # -o indica il nome del file di output desiderato
+          java -jar TestSmellDetector.jar -f input.csv -o smells_report.csv
           
-          # Verifica del file generato e rinomina per coerenza
-          if ls *.csv | grep -v "input.csv"; then
-            mv *.csv smells_report.csv 2>/dev/null || true
+          # Verifica del file generato
+          if [ -f smells_report.csv ]; then
             echo "=== REPORT SMELLS GENERATO ==="
             cat smells_report.csv
           else
-            echo "Report non generato"
+            echo "Report non generato. Controlla se è stato creato con un altro nome:"
+            ls -la *.csv
             exit 1
           fi
 
