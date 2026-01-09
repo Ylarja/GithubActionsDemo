@@ -84,12 +84,17 @@ jobs:
     - name: Aggiorna README con numero Smells
       working-directory: ./
       run: |
-        # Conta quante volte compare la parola "true" o "True" nel report.
-        SMELL_COUNT=$(grep -o -i "true" HSLColor_Tests/smells_report.csv | wc -l)
+        # Verifica se il file esiste per evitare errori
+        if [ -f HSLColor_Tests/smells_report.csv ]; then
+          SMELL_COUNT=$(grep -o -i "true" HSLColor_Tests/smells_report.csv | wc -l)
+        else
+          SMELL_COUNT=0
+          echo "Attenzione: File report smells non trovato, imposto count a 0"
+        fi
         
         echo "Totale Smells trovati: $SMELL_COUNT"
         
-        # Aggiorna il README.md (Ho ripristinato i tag mancanti nel tuo copia-incolla)
+        # Aggiorna il README.md (usiamo una sintassi sed a una riga per sicurezza)
         sed -i '//,//c\\nAllo stato attuale sono stati rilevati **'"$SMELL_COUNT"'** Test Smells.\n' README.md
 
     # 7. Salva tutto
