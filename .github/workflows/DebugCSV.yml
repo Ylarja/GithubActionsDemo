@@ -1,0 +1,56 @@
+name: Debug CSV Generation
+
+# Si attiva SOLO manualmente cliccando il bottone su GitHub
+on: workflow_dispatch
+
+jobs:
+  debug-paths:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del codice
+        uses: actions/checkout@v4
+
+      - name: Test Creazione CSV
+        working-directory: HSLColor_Tests
+        run: |
+          echo "🔹 1. Inizio Debug Percorsi..."
+          
+          # Calcolo i percorsi assoluti
+          # $(pwd) restituisce il percorso corrente sul server
+          TEST_DIR="$(pwd)/src/test/java"
+          PROD_DIR="$(pwd)/src/main/java"
+          
+          echo "📍 Percorso Test calcolato: $TEST_DIR"
+          echo "📍 Percorso Prod calcolato: $PROD_DIR"
+          
+          # Verifica se le cartelle esistono davvero sul server
+          if [ -d "$TEST_DIR" ]; then
+            echo "✅ La cartella dei Test ESISTE."
+          else
+            echo "❌ ERRORE: La cartella dei Test NON è stata trovata!"
+          fi
+
+          if [ -d "$PROD_DIR" ]; then
+            echo "✅ La cartella di Produzione ESISTE."
+          else
+            echo "❌ ERRORE: La cartella di Produzione NON è stata trovata!"
+          fi
+          
+          echo "🔹 2. Creazione del file input.csv..."
+          
+          # Scrivo l'intestazione
+          echo "ProjectName,TestDirPath,ProductionDirPath" > input.csv
+          
+          # Aggiungo la riga con i percorsi
+          echo "HSLProject,$TEST_DIR,$PROD_DIR" >> input.csv
+          
+          echo "🔹 3. Verifica contenuto file..."
+          if [ -f "input.csv" ]; then
+             echo "✅ File input.csv creato con successo. Ecco cosa contiene:"
+             echo "---------------------------------------------------------"
+             cat input.csv
+             echo "---------------------------------------------------------"
+          else
+             echo "❌ ERRORE: Il file input.csv non è stato creato."
+             exit 1
+          fi
