@@ -39,46 +39,42 @@ jobs:
         working-directory: HSLColor_Tests
         continue-on-error: true
         run: |
-          echo "=== 1. PREPARAZIONE AMBIENTE ==="
-          
-          # Scarichiamo la versione 2.2 che è stabile e sappiamo dove si trova
+          echo "=== 1. PREPARAZIONE ==="
           wget -O TestSmellDetector.jar https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
           
-          # TRUCCO: Usiamo percorsi RELATIVI invece di assoluti per evitare il bug "Is a directory"
-          TEST_DIR="src/test/java"
-          PROD_DIR="src/main/java"
+          # USIAMO PERCORSI ASSOLUTI (Richiesti dal tool)
+          TEST_DIR="$(pwd)/src/test/java"
+          PROD_DIR="$(pwd)/src/main/java"
           
-          echo "Test dir (relativa): $TEST_DIR"
-          echo "Prod dir (relativa): $PROD_DIR"
+          # Verifica esistenza
+          if [ ! -d "$TEST_DIR" ]; then echo "❌ Errore: Dir Test non trovata"; exit 1; fi
           
-          echo "=== 2. CREAZIONE INPUT.CSV ==="
-          # Creiamo il file SENZA intestazione (la v2.2 preferisce così)
-          # Formato: ProjectName,TestDir,ProdDir
+          echo "=== 2. CREAZIONE INPUT.CSV (Assoluti + No Header) ==="
+          # Combinazione critica:
+          # 1. NO intestazione (il tool v2.2 legge dalla prima riga)
+          # 2. Percorsi ASSOLUTI (il tool non sa navigare i relativi)
           echo "HSLProject,$TEST_DIR,$PROD_DIR" > input.csv
           
-          echo "Contenuto input.csv:"
+          echo "Anteprima file:"
           cat input.csv
           
-          echo "=== 3. ESECUZIONE ANALISI ==="
-          # Eseguiamo il jar passando il file csv con il flag -f
+          echo "=== 3. ESECUZIONE ==="
+          # Flag -f obbligatorio per dire "questo è un file di configurazione"
           java -jar TestSmellDetector.jar -f input.csv
           
-          echo "=== 4. GESTIONE RISULTATI ==="
-          # Cerchiamo qualsiasi CSV generato che non sia quello di input
-          TARGET_FILE=$(ls *.csv | grep -v "input.csv" | head -n 1)
+          echo "=== 4. RECUPERO RISULTATI ==="
+          # Il tool v2.2 spesso genera un file chiamato "TestSmellResults.csv" o simile
+          # Lo cerchiamo e lo rinominiamo
+          TARGET=$(ls *.csv | grep -v "input.csv" | head -n 1)
           
-          if [ ! -z "$TARGET_FILE" ]; then
-            echo "Report trovato: $TARGET_FILE"
-            mv "$TARGET_FILE" smells_report.csv
-            echo "Report rinominato in smells_report.csv"
-            
-            # Stampiamo le prime righe per vedere se ha funzionato
-            echo "Anteprima Report:"
-            head -n 5 smells_report.csv
+          if [ ! -z "$TARGET" ]; then
+             echo "✅ Successo! Report generato: $TARGET"
+             mv "$TARGET" smells_report.csv
+             cat smells_report.csv
           else
-            echo "ATTENZIONE: Nessun report CSV generato."
-            ls -la
-            exit 1
+             echo "⚠️ Nessun report generato. Elenco file presenti:"
+             ls -la
+             exit 1 
           fi
           
       - name: Commit automatico dei risultati
