@@ -39,44 +39,45 @@ jobs:
         jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
         badges-directory: HSLColor_Tests/badges
 
-# 5. Analisi Test Smells (Versione Corretta con Header)
+    # 5. Analisi Test Smells (tsDetect - versione corretta)
     - name: Analisi Test Smells
       working-directory: ./HSLColor_Tests
       continue-on-error: true
       run: |
         # 1. Scarica il tool
         wget https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
-        
-        # 2. TROVA I FILE AUTOMATICAMENTE
-        TEST_FILE=$(find $(pwd) -name "Test*.java" | head -n 1)
-        PROD_FILE=$(find $(pwd) -name "HSLColor.java" | head -n 1)
-        
+
+        # 2. Definisce le directory
+        TEST_DIR="$(pwd)/src/test/java"
+        PROD_DIR="$(pwd)/src/main/java"
+
+        echo "Directory Test: $TEST_DIR"
+        echo "Directory Produzione: $PROD_DIR"
+
         # Controllo di sicurezza
-        if [ -z "$TEST_FILE" ] || [ -z "$PROD_FILE" ]; then
-          echo "ERRORE: Non riesco a trovare i file Java."
+        if [ ! -d "$TEST_DIR" ] || [ ! -d "$PROD_DIR" ]; then
+          echo "ERRORE: Directory test o produzione non trovata"
+          ls -R
           exit 1
         fi
 
-        # 3. Crea il CSV con INTESTAZIONE (Fix per l'errore)
-        # La prima riga viene ignorata dal tool, quindi mettiamo dei titoli
-        echo "ProjectName,TestFilePath,ProductionFilePath" > input.csv
-        # Aggiungiamo la riga vera con i dati
-        echo "HSLProject,$TEST_FILE,$PROD_FILE" >> input.csv
-        
-        # Debug: Mostra il file creato
-        echo "--- CONTENUTO INPUT.CSV FINALE ---"
+        # 3. Crea il CSV nel formato corretto
+        echo "ProjectName,TestDirPath,ProductionDirPath" > input.csv
+        echo "HSLProject,$TEST_DIR,$PROD_DIR" >> input.csv
+
+        echo "--- CONTENUTO INPUT.CSV ---"
         cat input.csv
-        
+
         # 4. Esegue l'analisi
         java -jar TestSmellDetector.jar -f input.csv -o smells_report.csv
-        
-        # 5. Mostra il risultato
-        echo "--- RISULTATO ANALISI ---"
+
+        # 5. Mostra risultato
         if [ -f smells_report.csv ]; then
-            cat smells_report.csv
+          echo "--- RISULTATO ANALISI ---"
+          cat smells_report.csv
         else
-            echo "Attenzione: Il report non è stato generato."
-            exit 1
+          echo "Attenzione: Il report non è stato generato."
+          exit 1
         fi
 
     # 6. Scrive i risultati nel README.md
@@ -84,12 +85,11 @@ jobs:
       working-directory: ./
       run: |
         # Conta quante volte compare la parola "true" o "True" nel report.
-        # Ogni "true" corrisponde a uno smell rilevato.
         SMELL_COUNT=$(grep -o -i "true" HSLColor_Tests/smells_report.csv | wc -l)
         
         echo "Totale Smells trovati: $SMELL_COUNT"
         
-        # Aggiorna il README.md
+        # Aggiorna il README.md (Ho ripristinato i tag mancanti nel tuo copia-incolla)
         sed -i '//,//c\\nAllo stato attuale sono stati rilevati **'"$SMELL_COUNT"'** Test Smells.\n' README.md
 
     # 7. Salva tutto
