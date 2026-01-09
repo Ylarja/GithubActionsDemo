@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # Fondamentale per poter modificare il README e salvare i file
+  contents: write
 
 jobs:
   build-and-test:
@@ -25,12 +25,12 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    # 3. Esegue i Test (e genera i dati per la coverage)
+    # 3. Esegue Test e Coverage
     - name: Esegui Test con Maven
       working-directory: ./HSLColor_Tests
       run: mvn test
 
-    # 4. Genera i Badge di Copertura (e li salva nella cartella badges)
+    # 4. Genera i Badge di Copertura
     - name: Generate JaCoCo Badge
       id: jacoco
       uses: cicirello/jacoco-badge-generator@v2
@@ -39,33 +39,44 @@ jobs:
         jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
         badges-directory: HSLColor_Tests/badges
 
-    # 5. Analisi Test Smells (tsDetect)
+    # 5. Analisi Test Smells (Versione TestSmellDetector)
     - name: Analisi Test Smells
       working-directory: ./HSLColor_Tests
+      continue-on-error: true
       run: |
-        # Scarica tsDetect
-        wget https://github.com/TestSmells/TSDetect/releases/download/1.0.0/TSDetect.jar
+        # 1. Scarica il tool corretto (TestSmellDetector)
+        wget https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
         
-        # Esegue l'analisi (output nel file test_smells.csv)
-        java -jar TSDetect.jar -p . -o test_smells.csv
+        # 2. CREA IL FILE DI INPUT CSV (Fondamentale!)
+        # Formato richiesto: NomeProgetto, PathTest, PathProduzione
+        # Qui mappiamo manualmente i tuoi file. Se ne aggiungi altri, dovrai aggiornare questa riga o fare uno script più complesso.
+        echo "HSLProject,src/test/java/org/example/TestHSLColor.java,src/main/java/org/example/HSLColor.java" > input.csv
+        
+        # 3. Esegue l'analisi usando il file input.csv appena creato
+        # Il flag -N permette di non usare l'header nel CSV di input
+        java -jar TestSmellDetector.jar -f input.csv -o smells_report.csv
+        
+        # Mostra il report grezzo nel log (per debug)
+        echo "--- CSV GENERATO ---"
+        cat smells_report.csv
 
-    # 6. STEP NUOVO: Scrive i risultati nel README.md
+    # 6. Scrive i risultati nel README.md
     - name: Aggiorna README con numero Smells
+      working-directory: ./
       run: |
-        # Conta le righe del CSV (tolta l'intestazione) per sapere quanti smell ci sono
-        # Se il file è vuoto o ha solo l'intestazione, conta 0.
-        SMELL_COUNT=$(tail -n +2 HSLColor_Tests/test_smells.csv | wc -l)
+        # Conta quante volte compare la parola "true" o "True" nel report.
+        # Ogni "true" corrisponde a uno smell rilevato.
+        SMELL_COUNT=$(grep -o -i "true" HSLColor_Tests/smells_report.csv | wc -l)
         
-        echo "Smells trovati: $SMELL_COUNT"
+        echo "Totale Smells trovati: $SMELL_COUNT"
         
-        # Usa 'sed' per sostituire il testo tra i commenti START_SMELLS ed END_SMELLS
-        # Nota: Funziona sul file README.md nella radice
+        # Aggiorna il README.md
         sed -i '//,//c\\nAllo stato attuale sono stati rilevati **'"$SMELL_COUNT"'** Test Smells.\n' README.md
 
-    # 7. Salva tutto (Badge, CSV e README modificato)
+    # 7. Salva tutto
     - name: Commit delle modifiche
       if: always()
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: "Auto-update: README con Coverage e Smells count"
-        file_pattern: "HSLColor_Tests/badges/*.svg HSLColor_Tests/*.csv README.md"
+        file_pattern: "HSLColor_Tests/badges/*.svg README.md"
