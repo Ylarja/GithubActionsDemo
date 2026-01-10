@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-analyze-windows:
-    # 1. OBBLIGATORIO: Usiamo Windows per supportare i path D:\
+  #Test utilizzo Windows per path
     runs-on: windows-latest
     
     steps:
@@ -29,19 +29,15 @@ jobs:
         working-directory: HSLColor_Tests
         run: mvn test
 
-      # NOTA: Il Badge Generator è stato rimosso perché non compatibile con Windows.
-      # Se ti serve assolutamente, dovremo dividere il workflow in due job separati.
-
       - name: Analisi Test Smells (Paths Hardcodati)
         working-directory: HSLColor_Tests
         continue-on-error: true
-        # Usiamo PowerShell (default su Windows)
         run: |
           Write-Host "=== 1. VERIFICA JAR ==="
           $JarPath = "tools\TestSmellDetector.jar"
 
           if (-Not (Test-Path $JarPath)) {
-            Write-Error "❌ Errore: JAR non trovato in $JarPath. Assicurati di averlo caricato nel repo!"
+            Write-Error "Errore: JAR non trovato in $JarPath. Assicurati di averlo caricato nel repo!"
             exit 1
           }
 
@@ -68,13 +64,13 @@ jobs:
           $ResultFile = Get-ChildItem *.csv | Where-Object { $_.Name -ne "input.csv" -and $_.Name -notlike "*jacoco*" } | Select-Object -First 1
           
           if ($ResultFile) {
-             Write-Host "✅ Successo! Report generato: $($ResultFile.Name)"
+             Write-Host "Report generato: $($ResultFile.Name)"
              Move-Item -Path $ResultFile.FullName -Destination "smells_report.csv" -Force
              
              Write-Host "Anteprima contenuto report:"
              Get-Content smells_report.csv
           } else {
-             Write-Warning "⚠️ Nessun report generato."
+             Write-Warning "Nessun report generato."
              Write-Host "File presenti nella directory:"
              Get-ChildItem
              exit 1
