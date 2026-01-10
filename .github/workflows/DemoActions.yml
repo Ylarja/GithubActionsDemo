@@ -1,4 +1,4 @@
-name: Demo Actions - Test Coverage e Test Smells
+name: Demo Actions - Windows Runner
 
 on:
   push:
@@ -11,7 +11,8 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    # 1. CAMBIO SISTEMA OPERATIVO
+    runs-on: windows-latest
     
     steps:
       - name: Checkout del codice
@@ -26,6 +27,7 @@ jobs:
 
       - name: Esegui test con Maven
         working-directory: HSLColor_Tests
+        # Maven funziona uguale, Windows cmd/powershell lo riconosce
         run: mvn test
 
       - name: Genera badge di coverage (JaCoCo)
@@ -38,43 +40,56 @@ jobs:
       - name: Analisi Test Smells (tsDetect)
         working-directory: HSLColor_Tests
         continue-on-error: true
+        # GitHub Actions su Windows usa PowerShell di default
         run: |
-          echo "=== 1. PREPARAZIONE ==="
-          JAR_PATH="tools/TestSmellDetector.jar"
+          Write-Host "=== 1. PREPARAZIONE ==="
+          
+          # Percorso relativo locale
+          $JarPath = "tools\TestSmellDetector.jar"
 
-          if [ ! -f "$JAR_PATH" ]; then
-            echo "❌ Errore: JAR non trovato in $JAR_PATH"
-            ls -R
+          if (-Not (Test-Path $JarPath)) {
+            Write-Error "❌ Errore: JAR non trovato in $JarPath"
+            Get-ChildItem -Recurse
             exit 1
-          fi
+          }
           
-          # Linux usa percorsi assoluti con /
-          TEST_DIR="$(pwd)/src/test/java"
-          PROD_DIR="$(pwd)/src/main/java"
+          # Otteniamo i percorsi assoluti (stile Windows)
+          $Root = Get-Location
+          $TestDir = "$Root\src\test\java"
+          $ProdDir = "$Root\src\main\java"
           
-          echo "=== 2. CREAZIONE INPUT.CSV ==="
-          # Formato standard: ProjectName, TestPath, ProductionPath
-          echo "HSLProject,$TEST_DIR,$PROD_DIR" > input.csv
+          Write-Host "Test Dir: $TestDir"
           
-          echo "Contenuto input.csv:"
-          cat input.csv
+          if (-Not (Test-Path $TestDir)) {
+             Write-Error "❌ Errore: Directory Test non trovata"
+             exit 1
+          }
+
+          Write-Host "=== 2. CREAZIONE INPUT.CSV ==="
+          # Creiamo il CSV. PowerShell usa UTF-16 di default con >, usiamo Set-Content per ASCII/UTF8 se serve, 
+          # ma per ora proviamo il redirect semplice, java dovrebbe leggerlo.
+          # Formato: ProjectName,TestPath,ProdPath
+          "HSLProject,$TestDir,$ProdDir" | Out-File -FilePath input.csv -Encoding ascii
           
-          echo "=== 3. ESECUZIONE ==="
-          # CORREZIONE QUI: Rimosso il flag -f
-          java -jar "$JAR_PATH" input.csv
+          Write-Host "Contenuto input.csv:"
+          Get-Content input.csv
           
-          echo "=== 4. RECUPERO RISULTATI ==="
-          # Cerchiamo qualsiasi CSV creato che non sia quello di input
-          ls -la *.csv
-          TARGET=$(ls *.csv | grep -v "input.csv" | head -n 1)
+          Write-Host "=== 3. ESECUZIONE ==="
+          # Esecuzione standard Java (senza -f come concordato)
+          java -jar $JarPath input.csv
           
-          if [ ! -z "$TARGET" ]; then 
-             echo "✅ Report trovato: $TARGET"
-             mv "$TARGET" smells_report.csv
-          else 
-             echo "⚠️ Nessun report generato. Probabile errore nel tool."
-             exit 1 
-           fi
+          Write-Host "=== 4. RECUPERO RISULTATI ==="
+          # Cerchiamo il file CSV generato (escludendo input.csv e jacoco.csv)
+          $ResultFile = Get-ChildItem *.csv | Where-Object { $_.Name -ne "input.csv" } | Select-Object -First 1
+          
+          if ($ResultFile) {
+             Write-Host "✅ Report trovato: $($ResultFile.Name)"
+             Move-Item -Path $ResultFile.FullName -Destination "smells_report.csv" -Force
+          } else {
+             Write-Warning "⚠️ Nessun report generato."
+             Get-ChildItem
+             exit 1
+          }
 
       - name: Commit automatico dei risultati
         if: always()
