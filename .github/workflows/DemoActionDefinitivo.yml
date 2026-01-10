@@ -49,13 +49,9 @@ jobs:
             exit 1
           fi
 
-          # COSTRUZIONE PATH ASSOLUTI AI SINGOLI FILE
-          # Usiamo ${GITHUB_WORKSPACE} come base (che è /home/runner/work/...)
+          # COSTRUZIONE PATH ASSOLUTI PER SINGOLI FILE
           
           BASE_DIR="${GITHUB_WORKSPACE}/HSLColor_Tests"
-          
-          # ATTENZIONE: Qui replico la struttura org/example che avevi su Windows.
-          # Se i tuoi file sono direttamente in java/ senza package, togli "org/example/"
           
           TEST_FILE="$BASE_DIR/src/test/java/org/example/TestHSLColor.java"
           PROD_FILE="$BASE_DIR/src/main/java/org/example/HSLColor.java"
@@ -63,7 +59,7 @@ jobs:
           echo "Target Test File: $TEST_FILE"
           echo "Target Prod File: $PROD_FILE"
 
-          # Verifica esistenza fisica dei file prima di lanciare il tool
+          # Verifica esistenza fisica dei file 
           if [ ! -f "$TEST_FILE" ]; then
              echo "ERRORE: Il file di Test non esiste in quel percorso!"
              echo "Ecco cosa c'è dentro src/test/java:"
@@ -79,7 +75,6 @@ jobs:
           java -jar "$JAR_PATH" input.csv
           
           echo "=== RECUPERO RISULTATI ==="
-          # Cerchiamo output csv (escludendo input e jacoco)
           TARGET=$(ls *.csv | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
           
           if [ ! -z "$TARGET" ]; then 
@@ -104,22 +99,18 @@ jobs:
       # STEP AGGIUNTIVO: Aggiorna il numero di smell nel README
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
-          # 1. Contiamo le righe del CSV (ignorando eventuali righe vuote)
-          # Se il file ha un header, sottrai 1. Se è solo dati, usa il conteggio puro.
-          # Assumiamo che tsDetect generi solo righe di dati o header+dati.
           
           if [ -f smells_report.csv ]; then
              COUNT=$(grep -cve '^\s*$' smells_report.csv)
              echo "Trovati $COUNT smell."
              
-             # 2. Usiamo SED per sostituire il testo tra i tag nel README
-             # Sostituisce tutto ciò che c'è tra START_SMELLS e END_SMELLS con il nuovo conteggio
+             # 2. Usiamo SED per sostituire il testo tra i tag nel READMe
              sed -i -e "//,//c\\n> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali.\n" README.md
           else
              echo "Nessun report trovato per aggiornare il Readme."
           fi
 
-      # 3. COMMIT DI TUTTO (Badge + Report Smells + README aggiornato)
+      # 3. COMMIT DI TUTTO 
       - name: Commit automatico dei risultati
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
