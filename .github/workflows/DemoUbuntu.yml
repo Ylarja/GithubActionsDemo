@@ -1,0 +1,103 @@
+name: CI Final - Coverage & Smells (Linux)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-analyze:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Checkout
+      - name: Checkout del codice
+        uses: actions/checkout@v4
+
+      # 2. Setup Java
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          cache: maven
+
+      # 3. Test & Coverage (Standard Maven)
+      - name: Esegui test con Maven
+        working-directory: HSLColor_Tests
+        run: mvn test
+
+      # 4. Generazione Badge (Ora funziona perché siamo su Linux!)
+      - name: Genera badge di coverage
+        uses: cicirello/jacoco-badge-generator@v2
+        with:
+          jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
+          badges-directory: HSLColor_Tests/badges
+          generate-branches-badge: true
+
+      # 5. Analisi Test Smells (La parte critica risolta)
+      - name: Analisi Test Smells
+        working-directory: HSLColor_Tests
+        continue-on-error: true
+        run: |
+          echo "=== SETUP ==="
+          JAR_PATH="tools/TestSmellDetector.jar"
+          
+          if [ ! -f "$JAR_PATH" ]; then
+            echo "❌ Errore: $JAR_PATH non trovato."
+            ls -R
+            exit 1
+          fi
+
+          # --- SOLUZIONE AI PERCORSI ---
+          # ${GITHUB_WORKSPACE} è la variabile d'ambiente standard di GitHub.
+          # Sostituisce la necessità di hardcodare D:\ o /home/...
+          
+          ROOT_PATH="${GITHUB_WORKSPACE}/HSLColor_Tests"
+          ABS_TEST="$ROOT_PATH/src/test/java"
+          ABS_PROD="$ROOT_PATH/src/main/java"
+          
+          echo "Path Assoluti Calcolati:"
+          echo "Test: $ABS_TEST"
+          echo "Prod: $ABS_PROD"
+
+          # Controllo di sicurezza
+          if [ ! -d "$ABS_TEST" ]; then
+             echo "❌ Errore: La cartella $ABS_TEST non esiste!"
+             exit 1
+          fi
+
+          # Creiamo il CSV.
+          # IMPORTANTE: Struttura: NomeProgetto, PathTest, PathProd
+          echo "HSLProject,$ABS_TEST,$ABS_PROD" > input.csv
+          
+          echo "=== ESECUZIONE TOOL ==="
+          # Lanciamo il jar passando il file di configurazione
+          java -jar "$JAR_PATH" input.csv
+          
+          echo "=== RECUPERO RISULTATI ==="
+          # Cerchiamo il file CSV generato (ignorando input.csv e jacoco.csv)
+          TARGET=$(ls *.csv | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
+          
+          if [ ! -z "$TARGET" ]; then 
+             echo "✅ Successo! Report generato: $TARGET"
+             mv "$TARGET" smells_report.csv
+             cat smells_report.csv
+          else 
+             echo "⚠️ Nessun report generato."
+             ls -la
+             exit 1 
+           fi
+
+      # 6. Commit Finale (Salva sia il Badge che il Report Smells)
+      - name: Commit automatico dei risultati
+        if: always()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "CI: Update Coverage Badge & Test Smells Report"
+          file_pattern: |
+            HSLColor_Tests/badges/*.svg
+            HSLColor_Tests/smells_report.csv
