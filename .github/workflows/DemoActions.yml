@@ -1,4 +1,4 @@
-name: Demo Actions - Windows Runner
+name: CI Windows - Hardcoded Paths
 
 on:
   push:
@@ -10,8 +10,8 @@ permissions:
   contents: write
 
 jobs:
-  build-and-test:
-    # 1. CAMBIO SISTEMA OPERATIVO
+  build-and-analyze-windows:
+    # 1. OBBLIGATORIO: Usiamo Windows per supportare i path D:\
     runs-on: windows-latest
     
     steps:
@@ -27,66 +27,55 @@ jobs:
 
       - name: Esegui test con Maven
         working-directory: HSLColor_Tests
-        # Maven funziona uguale, Windows cmd/powershell lo riconosce
         run: mvn test
 
-    #  - name: Genera badge di coverage (JaCoCo)
-    #    uses: cicirello/jacoco-badge-generator@v2
-    #    with:
-    #      jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
-    #      badges-directory: HSLColor_Tests/badges
-    #      generate-branches-badge: true
+      # NOTA: Il Badge Generator è stato rimosso perché non compatibile con Windows.
+      # Se ti serve assolutamente, dovremo dividere il workflow in due job separati.
 
-      - name: Analisi Test Smells (tsDetect)
+      - name: Analisi Test Smells (Paths Hardcodati)
         working-directory: HSLColor_Tests
         continue-on-error: true
-        # GitHub Actions su Windows usa PowerShell di default
+        # Usiamo PowerShell (default su Windows)
         run: |
-          Write-Host "=== 1. PREPARAZIONE ==="
-          
-          # Percorso relativo locale
+          Write-Host "=== 1. VERIFICA JAR ==="
           $JarPath = "tools\TestSmellDetector.jar"
 
           if (-Not (Test-Path $JarPath)) {
-            Write-Error "❌ Errore: JAR non trovato in $JarPath"
-            Get-ChildItem -Recurse
+            Write-Error "❌ Errore: JAR non trovato in $JarPath. Assicurati di averlo caricato nel repo!"
             exit 1
           }
-          
-          # Otteniamo i percorsi assoluti (stile Windows)
-          $Root = Get-Location
-          $TestDir = "$Root\src\test\java"
-          $ProdDir = "$Root\src\main\java"
-          
-          Write-Host "Test Dir: $TestDir"
-          
-          if (-Not (Test-Path $TestDir)) {
-             Write-Error "❌ Errore: Directory Test non trovata"
-             exit 1
-          }
 
-          Write-Host "=== 2. CREAZIONE INPUT.CSV ==="
-          # Creiamo il CSV. PowerShell usa UTF-16 di default con >, usiamo Set-Content per ASCII/UTF8 se serve, 
-          # ma per ora proviamo il redirect semplice, java dovrebbe leggerlo.
-          # Formato: ProjectName,TestPath,ProdPath
-          "HSLProject,$TestDir,$ProdDir" | Out-File -FilePath input.csv -Encoding ascii
+          Write-Host "=== 2. CREAZIONE INPUT.CSV (Hardcoded) ==="
           
-          Write-Host "Contenuto input.csv:"
+          # Inseriamo esattamente la stringa che hai richiesto
+          # Nota: PowerShell potrebbe avere problemi con le virgole se non virgolettiamo la stringa intera
+          $CsvLine = "HSLProject,D:\a\GithubActionsDemo\GithubActionsDemo\HSLColor_Tests\src\test\java\org\example\TestHSLColor.java,D:\a\GithubActionsDemo\GithubActionsDemo\HSLColor_Tests\src\main\java\org\example\HSLColor.java"
+          
+          Write-Host "Scrivendo nel CSV: $CsvLine"
+          
+          # Scriviamo il file forzando la codifica ASCII (Java a volte odia l'UTF-16 di default di Windows)
+          $CsvLine | Out-File -FilePath input.csv -Encoding ascii
+          
+          Write-Host "Contenuto file creato:"
           Get-Content input.csv
-          
-          Write-Host "=== 3. ESECUZIONE ==="
-          # Esecuzione standard Java (senza -f come concordato)
+
+          Write-Host "=== 3. ESECUZIONE TOOL ==="
+          # Eseguiamo il jar passando il file csv
           java -jar $JarPath input.csv
           
           Write-Host "=== 4. RECUPERO RISULTATI ==="
-          # Cerchiamo il file CSV generato (escludendo input.csv e jacoco.csv)
-          $ResultFile = Get-ChildItem *.csv | Where-Object { $_.Name -ne "input.csv" } | Select-Object -First 1
+          # Cerchiamo il file di output (escludendo input.csv e i file di jacoco)
+          $ResultFile = Get-ChildItem *.csv | Where-Object { $_.Name -ne "input.csv" -and $_.Name -notlike "*jacoco*" } | Select-Object -First 1
           
           if ($ResultFile) {
-             Write-Host "✅ Report trovato: $($ResultFile.Name)"
+             Write-Host "✅ Successo! Report generato: $($ResultFile.Name)"
              Move-Item -Path $ResultFile.FullName -Destination "smells_report.csv" -Force
+             
+             Write-Host "Anteprima contenuto report:"
+             Get-Content smells_report.csv
           } else {
              Write-Warning "⚠️ Nessun report generato."
+             Write-Host "File presenti nella directory:"
              Get-ChildItem
              exit 1
           }
@@ -95,7 +84,6 @@ jobs:
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Auto-update: badge coverage e test smells"
+          commit_message: "Auto-update: Test Smells Report (Windows)"
           file_pattern: |
-            HSLColor_Tests/badges/*.svg
             HSLColor_Tests/smells_report.csv
