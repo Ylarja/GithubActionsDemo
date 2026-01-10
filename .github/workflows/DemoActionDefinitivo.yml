@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   build-analyze-linux-file:
-    # 1. LINUX (Obbligatorio per il Badge Generator)
     runs-on: ubuntu-latest
     
     steps:
@@ -45,7 +44,7 @@ jobs:
           JAR_PATH="tools/TestSmellDetector.jar"
           
           if [ ! -f "$JAR_PATH" ]; then
-            echo "❌ Errore: JAR non trovato."
+            echo "Errore: JAR non trovato."
             ls -R tools
             exit 1
           fi
@@ -55,7 +54,7 @@ jobs:
           
           BASE_DIR="${GITHUB_WORKSPACE}/HSLColor_Tests"
           
-          # ⚠️ ATTENZIONE: Qui replico la struttura org/example che avevi su Windows.
+          # ATTENZIONE: Qui replico la struttura org/example che avevi su Windows.
           # Se i tuoi file sono direttamente in java/ senza package, togli "org/example/"
           
           TEST_FILE="$BASE_DIR/src/test/java/org/example/TestHSLColor.java"
@@ -66,7 +65,7 @@ jobs:
 
           # Verifica esistenza fisica dei file prima di lanciare il tool
           if [ ! -f "$TEST_FILE" ]; then
-             echo "❌ ERRORE: Il file di Test non esiste in quel percorso!"
+             echo "ERRORE: Il file di Test non esiste in quel percorso!"
              echo "Ecco cosa c'è dentro src/test/java:"
              find src/test/java -name "*.java"
              exit 1
@@ -84,11 +83,11 @@ jobs:
           TARGET=$(ls *.csv | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
           
           if [ ! -z "$TARGET" ]; then 
-             echo "✅ Successo! Report generato: $TARGET"
+             echo "Report generato: $TARGET"
              mv "$TARGET" smells_report.csv
              cat smells_report.csv
           else 
-             echo "⚠️ Nessun report generato."
+             echo "Nessun report generato."
              ls -la
              exit 1 
            fi
@@ -115,7 +114,7 @@ jobs:
              
              # 2. Usiamo SED per sostituire il testo tra i tag nel README
              # Sostituisce tutto ciò che c'è tra START_SMELLS e END_SMELLS con il nuovo conteggio
-             sed -i -e "//,//c\\n> ⚠️ **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali.\n" README.md
+             sed -i -e "//,//c\\n> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali.\n" README.md
           else
              echo "Nessun report trovato per aggiornare il Readme."
           fi
