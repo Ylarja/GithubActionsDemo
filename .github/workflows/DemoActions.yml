@@ -30,12 +30,12 @@ jobs:
         # Maven funziona uguale, Windows cmd/powershell lo riconosce
         run: mvn test
 
-      - name: Genera badge di coverage (JaCoCo)
-        uses: cicirello/jacoco-badge-generator@v2
-        with:
-          jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
-          badges-directory: HSLColor_Tests/badges
-          generate-branches-badge: true
+    #  - name: Genera badge di coverage (JaCoCo)
+    #    uses: cicirello/jacoco-badge-generator@v2
+    #    with:
+    #      jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
+    #      badges-directory: HSLColor_Tests/badges
+    #      generate-branches-badge: true
 
       - name: Analisi Test Smells (tsDetect)
         working-directory: HSLColor_Tests
