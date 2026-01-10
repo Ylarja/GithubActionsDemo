@@ -1,0 +1,132 @@
+name: CI Final - Coverage & Smells (Linux File Specific)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-analyze-linux-file:
+    # 1. LINUX (Obbligatorio per il Badge Generator)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout del codice
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          cache: maven
+
+      # --- FASE 1: TEST & COVERAGE ---
+      - name: Esegui test con Maven
+        working-directory: HSLColor_Tests
+        run: mvn test
+
+      - name: Genera badge di coverage
+        uses: cicirello/jacoco-badge-generator@v2
+        with:
+          jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
+          badges-directory: HSLColor_Tests/badges
+          generate-branches-badge: true
+
+      # --- FASE 2: ANALISI TEST SMELLS ---
+      - name: Analisi Test Smells (File per File)
+        working-directory: HSLColor_Tests
+        continue-on-error: true
+        run: |
+          echo "=== SETUP ==="
+          JAR_PATH="tools/TestSmellDetector.jar"
+          
+          if [ ! -f "$JAR_PATH" ]; then
+            echo "❌ Errore: JAR non trovato."
+            ls -R tools
+            exit 1
+          fi
+
+          # COSTRUZIONE PATH ASSOLUTI AI SINGOLI FILE
+          # Usiamo ${GITHUB_WORKSPACE} come base (che è /home/runner/work/...)
+          
+          BASE_DIR="${GITHUB_WORKSPACE}/HSLColor_Tests"
+          
+          # ⚠️ ATTENZIONE: Qui replico la struttura org/example che avevi su Windows.
+          # Se i tuoi file sono direttamente in java/ senza package, togli "org/example/"
+          
+          TEST_FILE="$BASE_DIR/src/test/java/org/example/TestHSLColor.java"
+          PROD_FILE="$BASE_DIR/src/main/java/org/example/HSLColor.java"
+          
+          echo "Target Test File: $TEST_FILE"
+          echo "Target Prod File: $PROD_FILE"
+
+          # Verifica esistenza fisica dei file prima di lanciare il tool
+          if [ ! -f "$TEST_FILE" ]; then
+             echo "❌ ERRORE: Il file di Test non esiste in quel percorso!"
+             echo "Ecco cosa c'è dentro src/test/java:"
+             find src/test/java -name "*.java"
+             exit 1
+          fi
+
+          # Creiamo il CSV puntando ai FILE, non alle directory
+          # Struttura: NomeProgetto, PathFileTest, PathFileProd
+          echo "HSLProject,$TEST_FILE,$PROD_FILE" > input.csv
+          
+          echo "=== ESECUZIONE TOOL ==="
+          java -jar "$JAR_PATH" input.csv
+          
+          echo "=== RECUPERO RISULTATI ==="
+          # Cerchiamo output csv (escludendo input e jacoco)
+          TARGET=$(ls *.csv | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
+          
+          if [ ! -z "$TARGET" ]; then 
+             echo "✅ Successo! Report generato: $TARGET"
+             mv "$TARGET" smells_report.csv
+             cat smells_report.csv
+          else 
+             echo "⚠️ Nessun report generato."
+             ls -la
+             exit 1 
+           fi
+
+      # --- FASE 3: COMMIT ---
+      - name: Commit automatico dei risultati
+        if: always()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "CI: Update Coverage Badge & Test Smells Report"
+          file_pattern: |
+            HSLColor_Tests/badges/*.svg
+            HSLColor_Tests/smells_report.csv
+      # STEP AGGIUNTIVO: Aggiorna il numero di smell nel README
+      - name: Aggiorna Conteggio Smells nel Readme
+        run: |
+          # 1. Contiamo le righe del CSV (ignorando eventuali righe vuote)
+          # Se il file ha un header, sottrai 1. Se è solo dati, usa il conteggio puro.
+          # Assumiamo che tsDetect generi solo righe di dati o header+dati.
+          
+          if [ -f smells_report.csv ]; then
+             COUNT=$(grep -cve '^\s*$' smells_report.csv)
+             echo "Trovati $COUNT smell."
+             
+             # 2. Usiamo SED per sostituire il testo tra i tag nel README
+             # Sostituisce tutto ciò che c'è tra START_SMELLS e END_SMELLS con il nuovo conteggio
+             sed -i -e "//,//c\\n> ⚠️ **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali.\n" README.md
+          else
+             echo "Nessun report trovato per aggiornare il Readme."
+          fi
+
+      # 3. COMMIT DI TUTTO (Badge + Report Smells + README aggiornato)
+      - name: Commit automatico dei risultati
+        if: always()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "CI: Update Coverage Badge, Readme & Smell Report"
+          file_pattern: |
+            HSLColor_Tests/badges/*.svg
+            HSLColor_Tests/smells_report.csv
+            README.md
