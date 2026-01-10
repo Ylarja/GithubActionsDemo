@@ -12,7 +12,7 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout del codice
         uses: actions/checkout@v4
@@ -40,43 +40,48 @@ jobs:
         continue-on-error: true
         run: |
           echo "=== 1. PREPARAZIONE ==="
-          wget -O TestSmellDetector.jar https://github.com/TestSmells/TestSmellDetector/releases/download/v2.2/TestSmellDetector.jar
+          # RIMOSSO WGET: Usiamo il file committato nel repo
+          # Assumiamo che il file sia in: HSLColor_Tests/tools/TestSmellDetector.jar
+          
+          JAR_PATH="tools/TestSmellDetector.jar"
+
+          if [ ! -f "$JAR_PATH" ]; then
+            echo "❌ Errore CRITICO: $JAR_PATH non trovato nel repository!"
+            echo "Assicurati di aver creato la cartella 'tools' dentro 'HSLColor_Tests' e di averci messo il jar."
+            ls -R
+            exit 1
+          fi
           
           # USIAMO PERCORSI ASSOLUTI (Richiesti dal tool)
           TEST_DIR="$(pwd)/src/test/java"
           PROD_DIR="$(pwd)/src/main/java"
           
-          # Verifica esistenza
+          # Verifica esistenza directory sorgenti
           if [ ! -d "$TEST_DIR" ]; then echo "❌ Errore: Dir Test non trovata"; exit 1; fi
           
           echo "=== 2. CREAZIONE INPUT.CSV (Assoluti + No Header) ==="
-          # Combinazione critica:
-          # 1. NO intestazione (il tool v2.2 legge dalla prima riga)
-          # 2. Percorsi ASSOLUTI (il tool non sa navigare i relativi)
           echo "HSLProject,$TEST_DIR,$PROD_DIR" > input.csv
           
-          echo "Anteprima file:"
+          echo "Anteprima file config:"
           cat input.csv
           
           echo "=== 3. ESECUZIONE ==="
-          # Flag -f obbligatorio per dire "questo è un file di configurazione"
-          java -jar TestSmellDetector.jar -f input.csv
+          # Eseguiamo usando il percorso locale
+          java -jar "$JAR_PATH" -f input.csv
           
           echo "=== 4. RECUPERO RISULTATI ==="
-          # Il tool v2.2 spesso genera un file chiamato "TestSmellResults.csv" o simile
-          # Lo cerchiamo e lo rinominiamo
           TARGET=$(ls *.csv | grep -v "input.csv" | head -n 1)
           
-          if [ ! -z "$TARGET" ]; then
+          if [ ! -z "$TARGET" ]; then 
              echo "✅ Successo! Report generato: $TARGET"
              mv "$TARGET" smells_report.csv
              cat smells_report.csv
-          else
+          else 
              echo "⚠️ Nessun report generato. Elenco file presenti:"
              ls -la
              exit 1 
-          fi
-          
+           fi
+
       - name: Commit automatico dei risultati
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
