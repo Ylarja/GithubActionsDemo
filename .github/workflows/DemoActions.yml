@@ -40,45 +40,39 @@ jobs:
         continue-on-error: true
         run: |
           echo "=== 1. PREPARAZIONE ==="
-          # RIMOSSO WGET: Usiamo il file committato nel repo
-          # Assumiamo che il file sia in: HSLColor_Tests/tools/TestSmellDetector.jar
-          
           JAR_PATH="tools/TestSmellDetector.jar"
 
           if [ ! -f "$JAR_PATH" ]; then
-            echo "❌ Errore CRITICO: $JAR_PATH non trovato nel repository!"
-            echo "Assicurati di aver creato la cartella 'tools' dentro 'HSLColor_Tests' e di averci messo il jar."
+            echo "❌ Errore: JAR non trovato in $JAR_PATH"
             ls -R
             exit 1
           fi
           
-          # USIAMO PERCORSI ASSOLUTI (Richiesti dal tool)
+          # Linux usa percorsi assoluti con /
           TEST_DIR="$(pwd)/src/test/java"
           PROD_DIR="$(pwd)/src/main/java"
           
-          # Verifica esistenza directory sorgenti
-          if [ ! -d "$TEST_DIR" ]; then echo "❌ Errore: Dir Test non trovata"; exit 1; fi
-          
-          echo "=== 2. CREAZIONE INPUT.CSV (Assoluti + No Header) ==="
+          echo "=== 2. CREAZIONE INPUT.CSV ==="
+          # Formato standard: ProjectName, TestPath, ProductionPath
           echo "HSLProject,$TEST_DIR,$PROD_DIR" > input.csv
           
-          echo "Anteprima file config:"
+          echo "Contenuto input.csv:"
           cat input.csv
           
           echo "=== 3. ESECUZIONE ==="
-          # Eseguiamo usando il percorso locale
-          java -jar "$JAR_PATH" -f input.csv
+          # CORREZIONE QUI: Rimosso il flag -f
+          java -jar "$JAR_PATH" input.csv
           
           echo "=== 4. RECUPERO RISULTATI ==="
+          # Cerchiamo qualsiasi CSV creato che non sia quello di input
+          ls -la *.csv
           TARGET=$(ls *.csv | grep -v "input.csv" | head -n 1)
           
           if [ ! -z "$TARGET" ]; then 
-             echo "✅ Successo! Report generato: $TARGET"
+             echo "✅ Report trovato: $TARGET"
              mv "$TARGET" smells_report.csv
-             cat smells_report.csv
           else 
-             echo "⚠️ Nessun report generato. Elenco file presenti:"
-             ls -la
+             echo "⚠️ Nessun report generato. Probabile errore nel tool."
              exit 1 
            fi
 
