@@ -10,6 +10,5 @@ L'analisi automatica tramite **TestSmellDetector** ha prodotto il seguente risul
 
 I dati sugli smell saranno aggiornati automaticamente alla prossima esecuzione.
 📂 **[Scarica il Report Dettagliato (CSV)](HSLColor_Tests/smells_report.csv)**
-
 ---
 *Report generato automaticamente da GitHub Actions su Ubuntu-Latest.*
