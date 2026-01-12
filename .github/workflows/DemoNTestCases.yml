@@ -23,19 +23,52 @@ jobs:
           java-version: '11'
           cache: maven
 
-      # --- FASE PRELIMINARE: RINOMINA FILE ---
-      - name: Normalizza nomi file di test
+     # --- FASE PRELIMINARE: RINOMINA E REFACTORING ---
+      - name: Normalizza nomi file e Classi
         working-directory: HSLColor_Tests/src/test/java/org/example
         run: |
-          echo "Rinomino i file per renderli compatibili con Maven..."
-          # Itera su tutti i file java che NON iniziano già con Test
+          echo "Avvio normalizzazione file..."
+          counter=1
+          
+          # Itera su tutti i file java
           for file in *.java; do
-            if [[ "$file" != Test* ]]; then
-              echo "Rinomino $file in Test$file"
-              mv "$file" "Test$file"
+            # Salta il tuo file originale se si chiama TestHSLColor.java (o simile, adattalo se serve)
+            if [[ "$file" == "TestHSLColor.java" ]]; then 
+              echo "Salto il file originale: $file"
+              continue
+            fi
+
+            # Se il file ha un nome "brutto" (contiene @ o inizia per un nome studente)
+            # Lo rinominiamo in StudentTest_X.java
+            if [[ "$file" != StudentTest* ]]; then
+              
+              cleanClassName="StudentTest${counter}"
+              cleanFileName="${cleanClassName}.java"
+              
+              echo "Processing: $file -> $cleanFileName"
+
+              # 1. Rinomina il file fisico
+              mv "$file" "$cleanFileName"
+
+              # 2. Modifica il nome della classe DENTRO il file
+              # Sostituisce "public class HSLColorTest" (o qualsiasi cosa ci sia) con "public class StudentTest1"
+              sed -i "s/public class [A-Za-z0-9_]*/public class ${cleanClassName}/" "$cleanFileName"
+
+              # 3. Corregge il package (fondamentale per trovare HSLColor)
+              # Se c'è una dichiarazione package, la forza a org.example
+              if grep -q "package " "$cleanFileName"; then
+                  sed -i "s/^package .*/package org.example;/" "$cleanFileName"
+              else
+                  # Se manca, la aggiunge in cima
+                  sed -i '1i package org.example;' "$cleanFileName"
+              fi
+
+              ((counter++))
             fi
           done
-          ls -la # Mostra i file finali per debug
+          
+          echo "File presenti dopo la normalizzazione:"
+          ls -la
 
       # --- FASE 1: TEST & COVERAGE ---
       - name: Esegui test con Maven
