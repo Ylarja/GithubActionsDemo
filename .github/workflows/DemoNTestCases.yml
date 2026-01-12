@@ -32,14 +32,13 @@ jobs:
           
           # Itera su tutti i file java
           for file in *.java; do
-            # Salta il tuo file originale se si chiama TestHSLColor.java (o simile, adattalo se serve)
+            # Salta il tuo file originale (adattalo se il tuo si chiama diversamente)
             if [[ "$file" == "TestHSLColor.java" ]]; then 
               echo "Salto il file originale: $file"
               continue
             fi
 
-            # Se il file ha un nome "brutto" (contiene @ o inizia per un nome studente)
-            # Lo rinominiamo in StudentTest_X.java
+            # Se il file ha un nome "brutto"
             if [[ "$file" != StudentTest* ]]; then
               
               cleanClassName="StudentTest${counter}"
@@ -47,19 +46,35 @@ jobs:
               
               echo "Processing: $file -> $cleanFileName"
 
-              # 1. Rinomina il file fisico
+              # 1. Trova il nome vecchio della classe PRIMA di rinominare
+              # Cerca la stringa "public class X" e prende la terza parola (il nome)
+              OLD_CLASS_NAME=$(grep "public class" "$file" | awk '{print $3}')
+              
+              echo "Rilevata classe originale: $OLD_CLASS_NAME"
+
+              # 2. Rinomina il file fisico
               mv "$file" "$cleanFileName"
 
-              # 2. Modifica il nome della classe DENTRO il file
-              # Sostituisce "public class HSLColorTest" (o qualsiasi cosa ci sia) con "public class StudentTest1"
-              sed -i "s/public class [A-Za-z0-9_]*/public class ${cleanClassName}/" "$cleanFileName"
+              # 3. Sostituzione intelligente nel codice
+              
+              if [ ! -z "$OLD_CLASS_NAME" ]; then
+                  # A. Cambia la dichiarazione della classe
+                  sed -i "s/class $OLD_CLASS_NAME/class $cleanClassName/" "$cleanFileName"
+                  
+                  # B. Cambia il costruttore (se esiste)
+                  # Cerca "public VecchioNome(" e sostituisce con "public NuovoNome("
+                  sed -i "s/public $OLD_CLASS_NAME *(/public $cleanClassName(/" "$cleanFileName"
+              else
+                  # Fallback brutale se grep fallisce (es. formattazione strana)
+                  # Assume che si chiamino tutti HSLColorTest come visto dai log
+                  sed -i "s/class HSLColorTest/class $cleanClassName/" "$cleanFileName"
+                  sed -i "s/public HSLColorTest *(/public $cleanClassName(/" "$cleanFileName"
+              fi
 
-              # 3. Corregge il package (fondamentale per trovare HSLColor)
-              # Se c'è una dichiarazione package, la forza a org.example
+              # 4. Corregge il package
               if grep -q "package " "$cleanFileName"; then
                   sed -i "s/^package .*/package org.example;/" "$cleanFileName"
               else
-                  # Se manca, la aggiunge in cima
                   sed -i '1i package org.example;' "$cleanFileName"
               fi
 
@@ -70,6 +85,7 @@ jobs:
           echo "File presenti dopo la normalizzazione:"
           ls -la
 
+          
       # --- FASE 1: TEST & COVERAGE ---
       - name: Esegui test con Maven
         working-directory: HSLColor_Tests
