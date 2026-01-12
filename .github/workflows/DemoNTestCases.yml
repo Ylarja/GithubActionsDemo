@@ -24,67 +24,46 @@ jobs:
           cache: maven
 
       # --- FASE PRELIMINARE: RINOMINA E REFACTORING ---
-      # Questa fase rinomina i file degli studenti e corregge il codice (Classe, Costruttore, Package)
       - name: Normalizza nomi file e Classi
         working-directory: HSLColor_Tests/src/test/java/org/example
         run: |
           echo "Avvio normalizzazione file..."
           counter=1
           
-          # Itera su tutti i file java nella cartella
           for file in *.java; do
-            # Salta il tuo file originale (adattalo se ha un nome diverso da TestHSLColor.java)
             if [[ "$file" == "TestHSLColor.java" ]]; then 
               echo "Salto il file originale: $file"
               continue
             fi
 
-            # Esegue la rinomina solo se il file non è già stato normalizzato
             if [[ "$file" != StudentTest* ]]; then
-              
               cleanClassName="StudentTest${counter}"
               cleanFileName="${cleanClassName}.java"
               
               echo "Processing: $file -> $cleanFileName"
-
-              # 1. Trova il nome vecchio della classe PRIMA di rinominare
-              # Cerca la stringa "class Qualcosa" e prende la parola successiva
-              OLD_CLASS_NAME=$(grep "class " "$file" | head -n 1 | awk '{for(i=1;i<=NF;i++) if($i=="class") print $(i+1)}')
               
-              # Pulizia extra nel caso awk prenda parentesi graffe (es. HSLColorTest{)
+              # Trova il nome vecchio della classe
+              OLD_CLASS_NAME=$(grep "class " "$file" | head -n 1 | awk '{for(i=1;i<=NF;i++) if($i=="class") print $(i+1)}')
               OLD_CLASS_NAME=$(echo "$OLD_CLASS_NAME" | tr -d '{')
-
-              echo "Rilevata classe originale: $OLD_CLASS_NAME"
-
-              # 2. Rinomina il file fisico
+              
               mv "$file" "$cleanFileName"
 
-              # 3. Sostituzione intelligente nel codice
               if [ ! -z "$OLD_CLASS_NAME" ]; then
-                  # A. Cambia la dichiarazione della classe
                   sed -i "s/class $OLD_CLASS_NAME/class $cleanClassName/" "$cleanFileName"
-                  
-                  # B. Cambia il costruttore (CRUCIALE per l'errore return type)
-                  # Cerca "public VecchioNome(" e sostituisce con "public NuovoNome("
                   sed -i "s/public $OLD_CLASS_NAME *(/public $cleanClassName(/" "$cleanFileName"
               else
-                  # Fallback: prova a sostituire HSLColorTest se non ha trovato il nome
                   sed -i "s/class HSLColorTest/class $cleanClassName/" "$cleanFileName"
                   sed -i "s/public HSLColorTest *(/public $cleanClassName(/" "$cleanFileName"
               fi
 
-              # 4. Corregge il package (deve essere org.example per vedere HSLColor)
               if grep -q "package " "$cleanFileName"; then
                   sed -i "s/^package .*/package org.example;/" "$cleanFileName"
               else
                   sed -i '1i package org.example;' "$cleanFileName"
               fi
-
               ((counter++))
             fi
           done
-          
-          echo "File presenti dopo la normalizzazione:"
           ls -la
 
       # --- FASE 1: TEST & COVERAGE ---
@@ -99,73 +78,79 @@ jobs:
           badges-directory: HSLColor_Tests/badges
           generate-branches-badge: true
 
-      # --- FASE 2: ANALISI TEST SMELLS (DINAMICA) ---
+      # --- FASE 2: ANALISI TEST SMELLS ---
       - name: Analisi Test Smells (Multi-File)
         working-directory: HSLColor_Tests
         continue-on-error: true
         run: |
+          echo "=== PULIZIA PRELIMINARE ==="
+          # CANCELLIAMO il vecchio report per evitare falsi positivi
+          rm -f smells_report.csv
+          rm -f output_*.csv
+
           echo "=== SETUP ==="
           JAR_PATH="tools/TestSmellDetector.jar"
-          
-          # Path Assoluti base
           BASE_DIR="${GITHUB_WORKSPACE}/HSLColor_Tests"
           TEST_DIR="$BASE_DIR/src/test/java/org/example"
           PROD_FILE="$BASE_DIR/src/main/java/org/example/HSLColor.java"
           
-          # Inizializza il CSV di input (vuoto)
           rm -f input.csv
           touch input.csv
 
           echo "=== GENERAZIONE INPUT CSV ==="
-          # Trova tutti i file java che contengono "Test" nel nome (StudentTest1, TestHSLColor, ecc.)
           find "$TEST_DIR" -name "*Test*.java" | while read test_file_path; do
-            echo "Aggiungo al set di analisi: $(basename "$test_file_path")"
-            # Sintassi: NomeProgetto, FileDiTest, FileDiProduzione
             echo "HSLProject,$test_file_path,$PROD_FILE" >> input.csv
           done
-
-          # Debug: vediamo cosa c'è dentro input.csv
           cat input.csv
 
           echo "=== ESECUZIONE TOOL ==="
           java -jar "$JAR_PATH" input.csv
           
+          echo "=== VERIFICA GENERAZIONE FILE ==="
+          ls -la # Debug: vediamo cosa è stato creato davvero
+
           echo "=== RECUPERO RISULTATI ==="
-          # Cerca il file CSV di output più recente
+          # Cerca un file che inizi per output_ (generato dal tool)
           TARGET=$(ls output_*.csv 2>/dev/null | head -n 1) 
           
           if [ ! -z "$TARGET" ]; then 
-             echo "Report generato: $TARGET"
+             echo "Report generato correttamente: $TARGET"
              mv "$TARGET" smells_report.csv
           else 
-             echo "Attenzione: Report standard non trovato, cerco CSV generici..."
-             # Esclude input.csv e jacoco.csv dalla ricerca
-             TARGET=$(ls *.csv | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
+             # Se il tool non ha creato output_*.csv, controlliamo se ha creato un altro csv NUOVO
+             # (Escludiamo input.csv e jacoco.csv)
+             echo "Attenzione: Report standard non trovato."
+             TARGET=$(ls *.csv 2>/dev/null | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
              
              if [ ! -z "$TARGET" ]; then
+                echo "Trovato file alternativo: $TARGET"
                 mv "$TARGET" smells_report.csv
              else
-                echo "Nessun report generato."
+                echo "ERRORE CRITICO: Nessun report CSV è stato generato dal tool."
                 exit 1 
              fi
            fi
 
-  # STEP AGGIUNTIVO: Aggiorna il numero di smell nel README
+      # --- FASE 3: AGGIORNAMENTO README E COMMIT ---
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
+          # Verifica che il report esista (generato allo step precedente)
           if [ -f HSLColor_Tests/smells_report.csv ]; then
-             # Conta le righe piene del CSV
+             
+             # Conta le righe
              COUNT=$(grep -cve '^\s*$' HSLColor_Tests/smells_report.csv)
              echo "Trovati $COUNT smell totali."
              
-             # Prepariamo il messaggio dinamico
              MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali."
              
              # COMANDO SED CORRETTO:
-             # Cerca il blocco tra i commenti START ed END e lo sostituisce con il messaggio aggiornato
+             # Cerca i tag che hai messo nel Readme
              sed -i "//,//c\\n$MSG\n" README.md
+          
           else
-             echo "Nessun report trovato per aggiornare il Readme."
+             echo "Nessun report trovato. Salto aggiornamento Readme."
+             # Creiamo un file vuoto per evitare che il commit fallisca se manca il file
+             touch HSLColor_Tests/smells_report.csv
           fi
 
       - name: Commit automatico finale
