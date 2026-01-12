@@ -150,18 +150,20 @@ jobs:
              fi
            fi
 
-      # --- FASE 3: AGGIORNAMENTO README E COMMIT ---
+  # STEP AGGIUNTIVO: Aggiorna il numero di smell nel README
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
           if [ -f HSLColor_Tests/smells_report.csv ]; then
-             # Conta le righe non vuote del report
+             # Conta le righe piene del CSV
              COUNT=$(grep -cve '^\s*$' HSLColor_Tests/smells_report.csv)
              echo "Trovati $COUNT smell totali."
              
-             # Sostituisce la riga nel README tra i tag (assicurati che i tag esistano nel readme)
-             # Nota: Se non usi tag specifici nel readme, questo comando cerca e sostituisce l'intera riga o blocco.
-             # Qui uso una sostituzione generica basata sulla struttura che avevi prima.
-             sed -i -e "//,//c\\n> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali.\n" README.md
+             # Prepariamo il messaggio dinamico
+             MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali."
+             
+             # COMANDO SED CORRETTO:
+             # Cerca il blocco tra i commenti START ed END e lo sostituisce con il messaggio aggiornato
+             sed -i "//,//c\\n$MSG\n" README.md
           else
              echo "Nessun report trovato per aggiornare il Readme."
           fi
