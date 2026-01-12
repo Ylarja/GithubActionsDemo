@@ -8,7 +8,7 @@ La seguente metrica indica la percentuale di codice coperta dai test unitari.
 ### 2. Test Smells (Qualità dei Test)
 L'analisi automatica tramite **TestSmellDetector** ha prodotto il seguente risultato:
 
-I dati sugli smell saranno aggiornati automaticamente alla prossima esecuzione.
+I dati saranno calcolati al prossimo push.
 📂 **[Scarica il Report Dettagliato (CSV)](HSLColor_Tests/smells_report.csv)**
 ---
 *Report generato automaticamente da GitHub Actions su Ubuntu-Latest.*
