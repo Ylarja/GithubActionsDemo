@@ -23,22 +23,23 @@ jobs:
           java-version: '11'
           cache: maven
 
-     # --- FASE PRELIMINARE: RINOMINA E REFACTORING ---
+      # --- FASE PRELIMINARE: RINOMINA E REFACTORING ---
+      # Questa fase rinomina i file degli studenti e corregge il codice (Classe, Costruttore, Package)
       - name: Normalizza nomi file e Classi
         working-directory: HSLColor_Tests/src/test/java/org/example
         run: |
           echo "Avvio normalizzazione file..."
           counter=1
           
-          # Itera su tutti i file java
+          # Itera su tutti i file java nella cartella
           for file in *.java; do
-            # Salta il tuo file originale (adattalo se il tuo si chiama diversamente)
+            # Salta il tuo file originale (adattalo se ha un nome diverso da TestHSLColor.java)
             if [[ "$file" == "TestHSLColor.java" ]]; then 
               echo "Salto il file originale: $file"
               continue
             fi
 
-            # Se il file ha un nome "brutto"
+            # Esegue la rinomina solo se il file non è già stato normalizzato
             if [[ "$file" != StudentTest* ]]; then
               
               cleanClassName="StudentTest${counter}"
@@ -47,31 +48,32 @@ jobs:
               echo "Processing: $file -> $cleanFileName"
 
               # 1. Trova il nome vecchio della classe PRIMA di rinominare
-              # Cerca la stringa "public class X" e prende la terza parola (il nome)
-              OLD_CLASS_NAME=$(grep "public class" "$file" | awk '{print $3}')
+              # Cerca la stringa "class Qualcosa" e prende la parola successiva
+              OLD_CLASS_NAME=$(grep "class " "$file" | head -n 1 | awk '{for(i=1;i<=NF;i++) if($i=="class") print $(i+1)}')
               
+              # Pulizia extra nel caso awk prenda parentesi graffe (es. HSLColorTest{)
+              OLD_CLASS_NAME=$(echo "$OLD_CLASS_NAME" | tr -d '{')
+
               echo "Rilevata classe originale: $OLD_CLASS_NAME"
 
               # 2. Rinomina il file fisico
               mv "$file" "$cleanFileName"
 
               # 3. Sostituzione intelligente nel codice
-              
               if [ ! -z "$OLD_CLASS_NAME" ]; then
                   # A. Cambia la dichiarazione della classe
                   sed -i "s/class $OLD_CLASS_NAME/class $cleanClassName/" "$cleanFileName"
                   
-                  # B. Cambia il costruttore (se esiste)
+                  # B. Cambia il costruttore (CRUCIALE per l'errore return type)
                   # Cerca "public VecchioNome(" e sostituisce con "public NuovoNome("
                   sed -i "s/public $OLD_CLASS_NAME *(/public $cleanClassName(/" "$cleanFileName"
               else
-                  # Fallback brutale se grep fallisce (es. formattazione strana)
-                  # Assume che si chiamino tutti HSLColorTest come visto dai log
+                  # Fallback: prova a sostituire HSLColorTest se non ha trovato il nome
                   sed -i "s/class HSLColorTest/class $cleanClassName/" "$cleanFileName"
                   sed -i "s/public HSLColorTest *(/public $cleanClassName(/" "$cleanFileName"
               fi
 
-              # 4. Corregge il package
+              # 4. Corregge il package (deve essere org.example per vedere HSLColor)
               if grep -q "package " "$cleanFileName"; then
                   sed -i "s/^package .*/package org.example;/" "$cleanFileName"
               else
@@ -85,7 +87,6 @@ jobs:
           echo "File presenti dopo la normalizzazione:"
           ls -la
 
-          
       # --- FASE 1: TEST & COVERAGE ---
       - name: Esegui test con Maven
         working-directory: HSLColor_Tests
@@ -116,9 +117,8 @@ jobs:
           touch input.csv
 
           echo "=== GENERAZIONE INPUT CSV ==="
-          # Trova tutti i file .java nella cartella dei test
-          # E per ognuno aggiunge una riga al file input.csv
-          find "$TEST_DIR" -name "Test*.java" | while read test_file_path; do
+          # Trova tutti i file java che contengono "Test" nel nome (StudentTest1, TestHSLColor, ecc.)
+          find "$TEST_DIR" -name "*Test*.java" | while read test_file_path; do
             echo "Aggiungo al set di analisi: $(basename "$test_file_path")"
             # Sintassi: NomeProgetto, FileDiTest, FileDiProduzione
             echo "HSLProject,$test_file_path,$PROD_FILE" >> input.csv
@@ -131,18 +131,17 @@ jobs:
           java -jar "$JAR_PATH" input.csv
           
           echo "=== RECUPERO RISULTATI ==="
-          # Il tool genera un CSV per riga di input, o uno cumulativo. 
-          # Solitamente tsDetect genera un file con data/ora. Prendiamo il più recente.
+          # Cerca il file CSV di output più recente
           TARGET=$(ls output_*.csv 2>/dev/null | head -n 1) 
-          # NOTA: Se il tool genera nomi diversi, usa "ls *.csv | grep -v input | grep -v jacoco" come facevi prima
           
           if [ ! -z "$TARGET" ]; then 
              echo "Report generato: $TARGET"
              mv "$TARGET" smells_report.csv
           else 
-             # Se il tool non ha generato output (magari crasha su file multipli), fallback
-             echo "Attenzione: Report non trovato standard, cerco CSV generici..."
+             echo "Attenzione: Report standard non trovato, cerco CSV generici..."
+             # Esclude input.csv e jacoco.csv dalla ricerca
              TARGET=$(ls *.csv | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
+             
              if [ ! -z "$TARGET" ]; then
                 mv "$TARGET" smells_report.csv
              else
@@ -151,31 +150,23 @@ jobs:
              fi
            fi
 
-      # --- FASE 3: COMMIT ---
-      - name: Commit automatico dei risultati
-        if: always()
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "CI: Update Coverage Badge & Test Smells Report"
-          file_pattern: |
-            HSLColor_Tests/badges/*.svg
-            HSLColor_Tests/smells_report.csv
-      # STEP AGGIUNTIVO: Aggiorna il numero di smell nel README
+      # --- FASE 3: AGGIORNAMENTO README E COMMIT ---
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
-          
-          if [ -f smells_report.csv ]; then
-             COUNT=$(grep -cve '^\s*$' smells_report.csv)
-             echo "Trovati $COUNT smell."
+          if [ -f HSLColor_Tests/smells_report.csv ]; then
+             # Conta le righe non vuote del report
+             COUNT=$(grep -cve '^\s*$' HSLColor_Tests/smells_report.csv)
+             echo "Trovati $COUNT smell totali."
              
-             # 2. Usiamo SED per sostituire il testo tra i tag nel READMe
+             # Sostituisce la riga nel README tra i tag (assicurati che i tag esistano nel readme)
+             # Nota: Se non usi tag specifici nel readme, questo comando cerca e sostituisce l'intera riga o blocco.
+             # Qui uso una sostituzione generica basata sulla struttura che avevi prima.
              sed -i -e "//,//c\\n> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali.\n" README.md
           else
              echo "Nessun report trovato per aggiornare il Readme."
           fi
 
-      # 3. COMMIT DI TUTTO 
-      - name: Commit automatico dei risultati
+      - name: Commit automatico finale
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
