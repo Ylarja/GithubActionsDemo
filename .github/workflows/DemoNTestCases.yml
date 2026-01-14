@@ -130,18 +130,17 @@ jobs:
              fi
           fi
 
-      # --- FASE 3: AGGIORNAMENTO README E COMMIT ---
+       # --- FASE 3: AGGIORNAMENTO README E COMMIT ---
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
           if [ -s HSLColor_Tests/smells_report.csv ]; then
-             # Conta le righe non vuote
              COUNT=$(grep -cve '^\s*$' HSLColor_Tests/smells_report.csv)
              echo "Trovati $COUNT smell totali."
              
              MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali sui file cumulativi."
              
-             # Nota: Assicurati di avere i tag e END nel tuo Readme
-             sed -i '//,//c\\n'"$MSG"'\n' README.md
+             sed -i '/<!-- TEST_SMELLS_START -->/,/<!-- TEST_SMELLS_END -->/c\<!-- TEST_SMELLS_START -->\'"$MSG"'\<!-- TEST_SMELLS_END -->' README.md
+
           else
              echo "File report vuoto o non trovato."
           fi
