@@ -19,8 +19,9 @@ Questa sezione rappresenta la **baseline**, ottenuta eseguendo **una sola classe
 ### 1. Code Coverage (Baseline)
 La seguente metrica indica la percentuale di codice coperta dal **solo test baseline**.
 
-![Coverage](HSLColor_Tests/badges/jacoco.svg)
-![Branches](HSLColor_Tests/badges/branches.svg)
+### 1. Code Coverage (Baseline)
+![Coverage](HSLColor_Tests/badges/jacoco_baseline.svg)
+![Branches](HSLColor_Tests/badges/branches_baseline.svg)
 
 ### 2. Test Smells (Baseline)
 Risultati dell’analisi dei Test Smell sul singolo file di test tramite **TestSmellDetector**.
@@ -30,6 +31,13 @@ Risultati dell’analisi dei Test Smell sul singolo file di test tramite **TestS
 ---
 
 ## 📈 Analisi di Scalabilità (più classi di test)
+
+### 1. Code Coverage (Scalability)
+La seguente metrica indica la percentuale di codice coperta dal **solo test scalability**.
+
+![Coverage](HSLColor_Tests/badges/jacoco_scalability.svg)
+![Branches](HSLColor_Tests/badges/branches_scalability.svg)
+
 
 Questa configurazione valuta la pipeline con **più classi di test** (baseline + test di altri studenti),
 al fine di verificare il comportamento della soluzione all’aumentare del numero di test.
