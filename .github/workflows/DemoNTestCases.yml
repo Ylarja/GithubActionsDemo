@@ -69,6 +69,8 @@ jobs:
         with:
           jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
           badges-directory: HSLColor_Tests/badges
+          coverage-badge-name: jacoco_scalability.svg
+          branches-badge-name: branches_scalability.svg
           generate-branches-badge: true
 
       # --- FASE 2: ANALISI TEST SMELLS ---
