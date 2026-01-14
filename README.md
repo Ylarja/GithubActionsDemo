@@ -5,7 +5,7 @@ Questo progetto utilizza **GitHub Actions** per automatizzare:
 - il calcolo della **code coverage**
 - l’analisi dei **Test Smells** tramite *TestSmellDetector*
 
-L’obiettivo è valutare **la scalabilità della pipeline di testing** all’aumentare del numero di classi di test.
+Si è cercato di validare la bontà della soluzione **all'aumentare del numero delle classi di Test**
 
 ---
 
