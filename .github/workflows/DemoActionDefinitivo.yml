@@ -1,4 +1,4 @@
-name: CI Final - Coverage & Smells (Linux File Specific)
+name: CI Baseline - Coverage & Smells
 
 on:
   push:
@@ -45,6 +45,8 @@ jobs:
         with:
           jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
           badges-directory: HSLColor_Tests/badges
+          coverage-badge-name: jacoco_baseline.svg
+          branches-badge-name: branches_baseline.svg
           generate-branches-badge: true
 
       # --- FASE 2: ANALISI TEST SMELLS ---
