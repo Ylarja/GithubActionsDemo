@@ -103,7 +103,7 @@ jobs:
             COUNT=$(grep -cve '^\s*$' HSLColor_Tests/smells_report.csv)
             MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali sui file cumulativi."
 
-            sed -i '/<!-- TEST_SMELLS_START -->/,/<!-- TEST_SMELLS_END -->/c\<!-- TEST_SMELLS_START -->\'"$MSG"'\<!-- TEST_SMELLS_END -->' README.md
+            sed -i '/<!-- SCALABILITY_SMELLS_START -->/,/<!-- SCALABILITY_SMELLS_END -->/c\<!-- SCALABILITY_SMELLS_START -->\'"$MSG"'\<!-- SCALABILITY_SMELLS_END -->' README.md
           fi
 
       # --- FASE 4: COMMIT & PUSH MANUALE (FIX DEFINITIVO) ---
