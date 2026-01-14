@@ -33,4 +33,5 @@ Risultati dell’analisi dei Test Smell sul singolo file di test tramite **TestS
 
 Questa configurazione valuta la pipeline con **più classi di test** (baseline + test di altri studenti),
 al fine di verificare il comportamento della soluzione all’aumentare del numero di test.
+📂 **[Scarica il Report Smells (CSV)](HSLColor_Tests/smells_report.csv)**
 
