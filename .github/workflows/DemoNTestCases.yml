@@ -143,11 +143,31 @@ jobs:
              echo "File report vuoto o non trovato."
           fi
 
+      # --- NUOVO STEP: DEBUG E PREPARAZIONE COMMIT ---
+      - name: Verifica file e Forza Aggiunta (Git Add)
+        run: |
+          echo "=== DEBUG: LISTA FILE HSLColor_Tests ==="
+          ls -la HSLColor_Tests/
+          
+          echo "=== DEBUG: STATUS GIT PRIMA ==="
+          git status
+          
+          echo "=== FORZA AGGIUNTA FILES ==="
+          # Aggiungiamo manualmente i file per essere sicuri che Git li veda
+          git add HSLColor_Tests/smells_report.csv
+          git add HSLColor_Tests/badges/*.svg
+          git add README.md
+          
+          echo "=== DEBUG: STATUS GIT DOPO ==="
+          git status
+
       - name: Commit automatico finale
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "CI: Update Coverage & Smell Report (Tests Executed)"
+          # Non serve più specificare file_pattern se abbiamo fatto git add manuale,
+          # ma lo lasciamo per sicurezza.
           file_pattern: |
             HSLColor_Tests/badges/*.svg
             HSLColor_Tests/smells_report.csv
