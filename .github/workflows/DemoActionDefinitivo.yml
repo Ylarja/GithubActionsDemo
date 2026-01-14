@@ -91,37 +91,14 @@ jobs:
           
           if [ ! -z "$TARGET" ]; then 
              echo "Report generato: $TARGET"
-             mv "$TARGET" smells_report.csv
-             cat smells_report.csv
+             mv "$TARGET" smells_baseline.csv
+             cat smells_baseline.csv
           else 
              echo "Nessun report generato."
              ls -la
              exit 1 
            fi
-
-      # --- FASE 3: COMMIT ---
-      - name: Commit automatico dei risultati
-        if: always()
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "CI: Update Coverage Badge & Test Smells Report"
-          file_pattern: |
-            HSLColor_Tests/badges/*.svg
-            HSLColor_Tests/smells_report.csv
-      # STEP AGGIUNTIVO: Aggiorna il numero di smell nel README
-      - name: Aggiorna Conteggio Smells nel Readme
-        run: |
-          
-          if [ -f smells_report.csv ]; then
-             COUNT=$(grep -cve '^\s*$' smells_report.csv)
-             echo "Trovati $COUNT smell."
-             
-             # 2. Usiamo SED per sostituire il testo tra i tag nel READMe
-             sed -i -e "//,//c\\n> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali.\n" README.md
-          else
-             echo "Nessun report trovato per aggiornare il Readme."
-          fi
-
+           
       # --- FASE 4: COMMIT & PUSH MANUALE ---
       - name: Commit & Push Report (Baseline)
         if: always()
@@ -129,12 +106,26 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add HSLColor_Tests/smells_report.csv
+          git add HSLColor_Tests/smells_baseline.csv
           git add HSLColor_Tests/badges/*.svg || true
           git add README.md
 
           git commit -m "CI (Baseline): Update Coverage & Test Smells Report" || echo "Niente da committare"
           git push
+          
+      # STEP AGGIUNTIVO: Aggiorna il numero di smell nel README
+      - name: Aggiorna Conteggio Smells nel Readme
+        run: |
+          
+          if [ -f smells_baseline.csv ]; then
+             COUNT=$(grep -cve '^\s*$' smells_baseline.csv)
+             echo "Trovati $COUNT smell."
+             
+             # 2. Usiamo SED per sostituire il testo tra i tag nel READMe
+             sed -i '/<!-- BASELINE_SMELLS_START -->/,/<!-- BASELINE_SMELLS_END -->/c\<!-- BASELINE_SMELLS_START -->\> **Attenzione:** L’ultima analisi baseline ha rilevato **'"$COUNT"'** Test Smells potenziali.\<!-- BASELINE_SMELLS_END -->' README.md
+          else
+             echo "Nessun report trovato per aggiornare il Readme."
+          fi
 
 
       - name: Ripristina test originali
