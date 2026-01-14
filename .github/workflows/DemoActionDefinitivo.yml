@@ -23,6 +23,18 @@ jobs:
           java-version: '11'
           cache: maven
 
+      # --- FASE PRELIMINARE: ISOLAMENTO TEST BASELINE ---
+      - name: Isola TestHSLColor (baseline)
+        working-directory: HSLColor_Tests/src/test/java/org/example
+        run: |
+          mkdir -p /tmp/other-tests
+          for file in *.java; do
+            if [ "$file" != "TestHSLColor.java" ]; then
+              mv "$file" /tmp/other-tests/
+            fi
+          done
+
+
       # --- FASE 1: TEST & COVERAGE ---
       - name: Esegui test con Maven
         working-directory: HSLColor_Tests
@@ -120,3 +132,10 @@ jobs:
             HSLColor_Tests/badges/*.svg
             HSLColor_Tests/smells_report.csv
             README.md
+
+      - name: Ripristina test originali
+        if: always()
+        working-directory: HSLColor_Tests/src/test/java/org/example
+        run: |
+          mv /tmp/other-tests/*.java . || true
+
