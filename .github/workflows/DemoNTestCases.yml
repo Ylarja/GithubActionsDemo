@@ -76,8 +76,7 @@ jobs:
       # --- FASE 1: TEST & COVERAGE ---
       - name: Esegui test con Maven (Ignorando fallimenti)
         working-directory: HSLColor_Tests
-        # MODIFICA FONDAMENTALE:
-        # 1. -Dmaven.test.failure.ignore=true : Dice a Maven di finire il lavoro (generare report) anche se i test falliscono
+        # 1. -Dmaven.test.failure.ignore=true : Dice a Maven di finire il lavoro anche se i test falliscono
         # 2. -Dtest="..." : Seleziona i tuoi test e quelli degli studenti
         run: mvn test -Dmaven.test.failure.ignore=true -Dtest="TestHSLColor,Studente*Test"
 
@@ -88,12 +87,13 @@ jobs:
           badges-directory: HSLColor_Tests/badges
           generate-branches-badge: true
 
-      # --- FASE 2: ANALISI TEST SMELLS ---
+      # --- FASE 2: ANALISI TEST SMELLS (GENERAZIONE REPORT) ---
       - name: Analisi Test Smells (Multi-File)
         working-directory: HSLColor_Tests
         continue-on-error: true
         run: |
           echo "=== PULIZIA PRELIMINARE ==="
+          # Cancella vecchi report (anche se errati/windows)
           rm -f smells_report.csv output_*.csv input.csv
           
           echo "=== SETUP ==="
@@ -103,6 +103,7 @@ jobs:
           PROD_FILE="$BASE_DIR/src/main/java/org/example/HSLColor.java"
           
           echo "=== GENERAZIONE INPUT CSV ==="
+          # Qui rigeneriamo i percorsi corretti (Linux) per ogni file
           find "$TEST_DIR" -name "*.java" | while read test_file_path; do
             echo "HSLProject,$test_file_path,$PROD_FILE" >> input.csv
           done
@@ -124,6 +125,7 @@ jobs:
                 mv "$TARGET" smells_report.csv
              else
                 echo "Nessun report generato."
+                # Genera un file vuoto per non bloccare il commit
                 touch smells_report.csv
              fi
           fi
@@ -132,13 +134,14 @@ jobs:
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
           if [ -s HSLColor_Tests/smells_report.csv ]; then
+             # Conta le righe non vuote
              COUNT=$(grep -cve '^\s*$' HSLColor_Tests/smells_report.csv)
              echo "Trovati $COUNT smell totali."
              
              MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali sui file cumulativi."
              
-             sed -i '/<!-- TEST_SMELLS_START -->/,/<!-- TEST_SMELLS_END -->/c\<!-- TEST_SMELLS_START -->\'"$MSG"'\<!-- TEST_SMELLS_END -->' README.md
-
+             # Nota: Assicurati di avere i tag e END nel tuo Readme
+             sed -i '//,//c\\n'"$MSG"'\n' README.md
           else
              echo "File report vuoto o non trovato."
           fi
