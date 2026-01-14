@@ -67,7 +67,7 @@ jobs:
       - name: Genera badge di coverage
         uses: cicirello/jacoco-badge-generator@v2
         with:
-          jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco_s.csv
+          jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
           badges-directory: HSLColor_Tests/badges
           coverage-badge-name: jacoco_scalability.svg
           branches-badge-name: branches_scalability.svg
