@@ -29,41 +29,43 @@ jobs:
           counter=1
           
           for file in *.java; do
-            # Saltiamo il file originale del professore/base
+            # Saltiamo il file originale del professore
             if [[ "$file" == "TestHSLColor.java" ]]; then 
               echo "Salto il file originale: $file"
               continue
             fi
 
-            # Processiamo solo se non è già stato rinominato (idempotenza)
-            if [[ "$file" != StudentTest* ]]; then
-              cleanClassName="StudentTest${counter}"
+            # Pattern di controllo: se il file non inizia per "Studente", lo rinominiamo
+            if [[ "$file" != Studente*Test.java ]]; then
+              # MODIFICA 1: Nome richiesto "StudenteXTest"
+              cleanClassName="Studente${counter}Test"
               cleanFileName="${cleanClassName}.java"
               
               echo "Processing: $file -> $cleanFileName"
               
-              # Trova il nome vecchio della classe
-              # Miglioramento regex: cerca 'class' seguito da spazi e prende la parola successiva
+              # Trova il nome vecchio della classe usando regex
               OLD_CLASS_NAME=$(grep -oP 'class \K\w+' "$file" | head -1)
               
+              # Rinomina il file fisico
               mv "$file" "$cleanFileName"
 
               if [ ! -z "$OLD_CLASS_NAME" ]; then
                   # Sostituisce la dichiarazione della classe
                   sed -i "s/class $OLD_CLASS_NAME/class $cleanClassName/" "$cleanFileName"
-                  # Sostituisce il costruttore (se presente ed è pubblico)
+                  # Sostituisce il costruttore (public NomeClasse)
                   sed -i "s/public $OLD_CLASS_NAME *(/public $cleanClassName(/" "$cleanFileName"
               else
-                  # Fallback nel caso il grep fallisca
+                  # Fallback generico
                   sed -i "s/class HSLColorTest/class $cleanClassName/" "$cleanFileName"
                   sed -i "s/public HSLColorTest *(/public $cleanClassName(/" "$cleanFileName"
               fi
 
-              # Gestione Package: Assicuriamoci che sia org.example
-              if grep -q "package " "$cleanFileName"; then
+              # MODIFICA 2: Gestione Package org.example
+              if grep -q "^package " "$cleanFileName"; then
+                  # Se esiste un package, lo sostituiamo forzatamente
                   sed -i "s/^package .*/package org.example;/" "$cleanFileName"
               else
-                  # Inserisce il package alla riga 1
+                  # Se non esiste, lo aggiungiamo in testa al file
                   sed -i '1i package org.example;' "$cleanFileName"
               fi
               
@@ -75,8 +77,8 @@ jobs:
       # --- FASE 1: TEST & COVERAGE ---
       - name: Esegui test con Maven
         working-directory: HSLColor_Tests
-        # CORREZIONE QUI: Forziamo l'esecuzione di tutti i test che iniziano con StudentTest
-        run: mvn test -Dtest="TestHSLColor,StudentTest*"
+        # MODIFICA 3: Aggiornato il pattern per includere Studente*Test
+        run: mvn test -Dtest="TestHSLColor,Studente*Test"
 
       - name: Genera badge di coverage
         uses: cicirello/jacoco-badge-generator@v2
@@ -100,7 +102,6 @@ jobs:
           PROD_FILE="$BASE_DIR/src/main/java/org/example/HSLColor.java"
           
           echo "=== GENERAZIONE INPUT CSV ==="
-          # Trova tutti i file java nella cartella test
           find "$TEST_DIR" -name "*.java" | while read test_file_path; do
             echo "HSLProject,$test_file_path,$PROD_FILE" >> input.csv
           done
@@ -117,7 +118,6 @@ jobs:
              echo "Report trovato: $TARGET"
              mv "$TARGET" smells_report.csv
           else
-             # Tentativo di recupero fallback
              TARGET=$(ls *.csv 2>/dev/null | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
              if [ ! -z "$TARGET" ]; then
                 mv "$TARGET" smells_report.csv
@@ -131,14 +131,12 @@ jobs:
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
           if [ -s HSLColor_Tests/smells_report.csv ]; then
-             # Conta le righe non vuote (escludendo l'intestazione se necessario, qui conta tutto)
              COUNT=$(grep -cve '^\s*$' HSLColor_Tests/smells_report.csv)
              echo "Trovati $COUNT smell totali."
              
              MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali sui file cumulativi."
              
-             # CORREZIONE QUI: Usa i tag per sostituire il contenuto
-             # Nota: Devi aggiungere e nel tuo README.md
+             # Assicurati di avere e END nel tuo Readme
              sed -i '//,//c\\n'"$MSG"'\n' README.md
           else
              echo "File report vuoto o non trovato."
