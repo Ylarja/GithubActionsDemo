@@ -122,16 +122,20 @@ jobs:
              echo "Nessun report trovato per aggiornare il Readme."
           fi
 
-      # 3. COMMIT DI TUTTO 
-      - name: Commit automatico dei risultati
+      # --- FASE 4: COMMIT & PUSH MANUALE ---
+      - name: Commit & Push Report (Baseline)
         if: always()
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "CI: Update Coverage Badge, Readme & Smell Report"
-          file_pattern: |
-            HSLColor_Tests/badges/*.svg
-            HSLColor_Tests/smells_report.csv
-            README.md
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add HSLColor_Tests/smells_report.csv
+          git add HSLColor_Tests/badges/*.svg || true
+          git add README.md
+
+          git commit -m "CI (Baseline): Update Coverage & Test Smells Report" || echo "Niente da committare"
+          git push
+
 
       - name: Ripristina test originali
         if: always()
