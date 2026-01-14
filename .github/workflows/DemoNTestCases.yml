@@ -37,7 +37,6 @@ jobs:
 
             # Pattern di controllo: se il file non inizia per "Studente", lo rinominiamo
             if [[ "$file" != Studente*Test.java ]]; then
-              # MODIFICA 1: Nome richiesto "StudenteXTest"
               cleanClassName="Studente${counter}Test"
               cleanFileName="${cleanClassName}.java"
               
@@ -60,7 +59,7 @@ jobs:
                   sed -i "s/public HSLColorTest *(/public $cleanClassName(/" "$cleanFileName"
               fi
 
-              # MODIFICA 2: Gestione Package org.example
+              # Gestione Package: Assicuriamoci che sia org.example
               if grep -q "^package " "$cleanFileName"; then
                   # Se esiste un package, lo sostituiamo forzatamente
                   sed -i "s/^package .*/package org.example;/" "$cleanFileName"
@@ -75,10 +74,12 @@ jobs:
           ls -la
 
       # --- FASE 1: TEST & COVERAGE ---
-      - name: Esegui test con Maven
+      - name: Esegui test con Maven (Ignorando fallimenti)
         working-directory: HSLColor_Tests
-        # MODIFICA 3: Aggiornato il pattern per includere Studente*Test
-        run: mvn test -Dtest="TestHSLColor,Studente*Test"
+        # MODIFICA FONDAMENTALE:
+        # 1. -Dmaven.test.failure.ignore=true : Dice a Maven di finire il lavoro (generare report) anche se i test falliscono
+        # 2. -Dtest="..." : Seleziona i tuoi test e quelli degli studenti
+        run: mvn test -Dmaven.test.failure.ignore=true -Dtest="TestHSLColor,Studente*Test"
 
       - name: Genera badge di coverage
         uses: cicirello/jacoco-badge-generator@v2
@@ -136,7 +137,6 @@ jobs:
              
              MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali sui file cumulativi."
              
-             # Assicurati di avere e END nel tuo Readme
              sed -i '//,//c\\n'"$MSG"'\n' README.md
           else
              echo "File report vuoto o non trovato."
@@ -146,7 +146,7 @@ jobs:
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "CI: Update Coverage & Smell Report (Multi-Students)"
+          commit_message: "CI: Update Coverage & Smell Report (Tests Executed)"
           file_pattern: |
             HSLColor_Tests/badges/*.svg
             HSLColor_Tests/smells_report.csv
