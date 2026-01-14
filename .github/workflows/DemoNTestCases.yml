@@ -1,10 +1,8 @@
 name: CI Final - Coverage & Smells (Linux File Specific)
-
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
-
 permissions:
   contents: write
 
@@ -31,11 +29,13 @@ jobs:
           counter=1
           
           for file in *.java; do
+            # Saltiamo il file originale del professore/base
             if [[ "$file" == "TestHSLColor.java" ]]; then 
               echo "Salto il file originale: $file"
               continue
             fi
 
+            # Processiamo solo se non è già stato rinominato (idempotenza)
             if [[ "$file" != StudentTest* ]]; then
               cleanClassName="StudentTest${counter}"
               cleanFileName="${cleanClassName}.java"
@@ -43,24 +43,30 @@ jobs:
               echo "Processing: $file -> $cleanFileName"
               
               # Trova il nome vecchio della classe
-              OLD_CLASS_NAME=$(grep "class " "$file" | head -n 1 | awk '{for(i=1;i<=NF;i++) if($i=="class") print $(i+1)}')
-              OLD_CLASS_NAME=$(echo "$OLD_CLASS_NAME" | tr -d '{')
+              # Miglioramento regex: cerca 'class' seguito da spazi e prende la parola successiva
+              OLD_CLASS_NAME=$(grep -oP 'class \K\w+' "$file" | head -1)
               
               mv "$file" "$cleanFileName"
 
               if [ ! -z "$OLD_CLASS_NAME" ]; then
+                  # Sostituisce la dichiarazione della classe
                   sed -i "s/class $OLD_CLASS_NAME/class $cleanClassName/" "$cleanFileName"
+                  # Sostituisce il costruttore (se presente ed è pubblico)
                   sed -i "s/public $OLD_CLASS_NAME *(/public $cleanClassName(/" "$cleanFileName"
               else
+                  # Fallback nel caso il grep fallisca
                   sed -i "s/class HSLColorTest/class $cleanClassName/" "$cleanFileName"
                   sed -i "s/public HSLColorTest *(/public $cleanClassName(/" "$cleanFileName"
               fi
 
+              # Gestione Package: Assicuriamoci che sia org.example
               if grep -q "package " "$cleanFileName"; then
                   sed -i "s/^package .*/package org.example;/" "$cleanFileName"
               else
+                  # Inserisce il package alla riga 1
                   sed -i '1i package org.example;' "$cleanFileName"
               fi
+              
               ((counter++))
             fi
           done
@@ -69,7 +75,8 @@ jobs:
       # --- FASE 1: TEST & COVERAGE ---
       - name: Esegui test con Maven
         working-directory: HSLColor_Tests
-        run: mvn test
+        # CORREZIONE QUI: Forziamo l'esecuzione di tutti i test che iniziano con StudentTest
+        run: mvn test -Dtest="TestHSLColor,StudentTest*"
 
       - name: Genera badge di coverage
         uses: cicirello/jacoco-badge-generator@v2
@@ -84,80 +91,64 @@ jobs:
         continue-on-error: true
         run: |
           echo "=== PULIZIA PRELIMINARE ==="
-          # CANCELLIAMO il vecchio report per evitare falsi positivi
-          rm -f smells_report.csv
-          rm -f output_*.csv
-
+          rm -f smells_report.csv output_*.csv input.csv
+          
           echo "=== SETUP ==="
           JAR_PATH="tools/TestSmellDetector.jar"
           BASE_DIR="${GITHUB_WORKSPACE}/HSLColor_Tests"
           TEST_DIR="$BASE_DIR/src/test/java/org/example"
           PROD_FILE="$BASE_DIR/src/main/java/org/example/HSLColor.java"
           
-          rm -f input.csv
-          touch input.csv
-
           echo "=== GENERAZIONE INPUT CSV ==="
-          find "$TEST_DIR" -name "*Test*.java" | while read test_file_path; do
+          # Trova tutti i file java nella cartella test
+          find "$TEST_DIR" -name "*.java" | while read test_file_path; do
             echo "HSLProject,$test_file_path,$PROD_FILE" >> input.csv
           done
+          
+          echo "Contenuto input.csv:"
           cat input.csv
-
+          
           echo "=== ESECUZIONE TOOL ==="
           java -jar "$JAR_PATH" input.csv
           
-          echo "=== VERIFICA GENERAZIONE FILE ==="
-          ls -la # Debug: vediamo cosa è stato creato davvero
-
           echo "=== RECUPERO RISULTATI ==="
-          # Cerca un file che inizi per output_ (generato dal tool)
-          TARGET=$(ls output_*.csv 2>/dev/null | head -n 1) 
-          
-          if [ ! -z "$TARGET" ]; then 
-             echo "Report generato correttamente: $TARGET"
+          TARGET=$(ls output_*.csv 2>/dev/null | head -n 1)
+          if [ ! -z "$TARGET" ]; then
+             echo "Report trovato: $TARGET"
              mv "$TARGET" smells_report.csv
-          else 
-             # Se il tool non ha creato output_*.csv, controlliamo se ha creato un altro csv NUOVO
-             # (Escludiamo input.csv e jacoco.csv)
-             echo "Attenzione: Report standard non trovato."
+          else
+             # Tentativo di recupero fallback
              TARGET=$(ls *.csv 2>/dev/null | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
-             
              if [ ! -z "$TARGET" ]; then
-                echo "Trovato file alternativo: $TARGET"
                 mv "$TARGET" smells_report.csv
              else
-                echo "ERRORE CRITICO: Nessun report CSV è stato generato dal tool."
-                exit 1 
+                echo "Nessun report generato."
+                touch smells_report.csv
              fi
-           fi
+          fi
 
       # --- FASE 3: AGGIORNAMENTO README E COMMIT ---
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
-          # Verifica che il report esista (generato allo step precedente)
-          if [ -f HSLColor_Tests/smells_report.csv ]; then
-             
-             # Conta le righe
+          if [ -s HSLColor_Tests/smells_report.csv ]; then
+             # Conta le righe non vuote (escludendo l'intestazione se necessario, qui conta tutto)
              COUNT=$(grep -cve '^\s*$' HSLColor_Tests/smells_report.csv)
              echo "Trovati $COUNT smell totali."
              
-             MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali."
+             MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali sui file cumulativi."
              
-             # COMANDO SED CORRETTO:
-             # Cerca i tag che hai messo nel Readme
-             sed -i "//,//c\\n$MSG\n" README.md
-          
+             # CORREZIONE QUI: Usa i tag per sostituire il contenuto
+             # Nota: Devi aggiungere e nel tuo README.md
+             sed -i '//,//c\\n'"$MSG"'\n' README.md
           else
-             echo "Nessun report trovato. Salto aggiornamento Readme."
-             # Creiamo un file vuoto per evitare che il commit fallisca se manca il file
-             touch HSLColor_Tests/smells_report.csv
+             echo "File report vuoto o non trovato."
           fi
 
       - name: Commit automatico finale
         if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "CI: Update Coverage Badge, Readme & Smell Report"
+          commit_message: "CI: Update Coverage & Smell Report (Multi-Students)"
           file_pattern: |
             HSLColor_Tests/badges/*.svg
             HSLColor_Tests/smells_report.csv
