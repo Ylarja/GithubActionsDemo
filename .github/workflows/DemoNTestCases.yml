@@ -87,14 +87,13 @@ jobs:
           badges-directory: HSLColor_Tests/badges
           generate-branches-badge: true
 
-      # --- FASE 2: ANALISI TEST SMELLS (GENERAZIONE REPORT) ---
+      # --- FASE 2: ANALISI TEST SMELLS (CORRETTA) ---
       - name: Analisi Test Smells (Multi-File)
         working-directory: HSLColor_Tests
         continue-on-error: true
         run: |
           echo "=== PULIZIA PRELIMINARE ==="
-          # Cancella vecchi report (anche se errati/windows)
-          rm -f smells_report.csv output_*.csv input.csv
+          rm -f smells_report.csv output_*.csv Output_*.csv input.csv
           
           echo "=== SETUP ==="
           JAR_PATH="tools/TestSmellDetector.jar"
@@ -103,33 +102,32 @@ jobs:
           PROD_FILE="$BASE_DIR/src/main/java/org/example/HSLColor.java"
           
           echo "=== GENERAZIONE INPUT CSV ==="
-          # Qui rigeneriamo i percorsi corretti (Linux) per ogni file
           find "$TEST_DIR" -name "*.java" | while read test_file_path; do
             echo "HSLProject,$test_file_path,$PROD_FILE" >> input.csv
           done
-          
-          echo "Contenuto input.csv:"
-          cat input.csv
           
           echo "=== ESECUZIONE TOOL ==="
           java -jar "$JAR_PATH" input.csv
           
           echo "=== RECUPERO RISULTATI ==="
-          TARGET=$(ls output_*.csv 2>/dev/null | head -n 1)
+          # MODIFICA QUI: Usiamo 'find' che è più sicuro e cerca sia Output che output
+          TARGET=$(find . -maxdepth 1 -name "*utput_*.csv" | head -n 1)
+          
           if [ ! -z "$TARGET" ]; then
              echo "Report trovato: $TARGET"
              mv "$TARGET" smells_report.csv
           else
+             # Fallback estremo: cerca qualsiasi CSV che non sia input o jacoco
              TARGET=$(ls *.csv 2>/dev/null | grep -v "input.csv" | grep -v "jacoco" | head -n 1)
              if [ ! -z "$TARGET" ]; then
+                echo "Trovato file alternativo: $TARGET"
                 mv "$TARGET" smells_report.csv
              else
-                echo "Nessun report generato."
-                # Genera un file vuoto per non bloccare il commit
+                echo "Nessun report generato. Creo file vuoto."
                 touch smells_report.csv
              fi
           fi
-
+          
        # --- FASE 3: AGGIORNAMENTO README E COMMIT ---
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
