@@ -34,22 +34,3 @@ Risultati dell’analisi dei Test Smell sul singolo file di test tramite **TestS
 Questa configurazione valuta la pipeline con **più classi di test** (baseline + test di altri studenti),
 al fine di verificare il comportamento della soluzione all’aumentare del numero di test.
 
-<!-- SCALABILITY_SMELLS_START -->> **Attenzione:** L'ultima analisi ha rilevato **6** Test Smells potenziali sui file cumulativi.<!-- SCALABILITY_SMELLS_END -->
-
-📂 **[Scarica il Report Scalabilità (CSV)](HSLColor_Tests/smells_report.csv)**
-
----
-
-## 🧪 Valutazione della Scalabilità
-
-Dal confronto tra le due configurazioni emerge che:
-
-- la **code coverage** aumenta in modo cumulativo con l’aggiunta di nuove classi di test
-- il numero di **Test Smells rilevati** cresce proporzionalmente al numero di test analizzati
-- la pipeline CI/CD **non richiede modifiche strutturali** per supportare nuovi test
-
-La soluzione risulta quindi **scalabile, automatizzata e riutilizzabile** anche in presenza di un numero maggiore di classi di test.
-
----
-
-*Report generato automaticamente da GitHub Actions su Ubuntu-Latest.*
