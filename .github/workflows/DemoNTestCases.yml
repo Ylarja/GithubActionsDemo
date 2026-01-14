@@ -1,4 +1,5 @@
-name: CI Final - Coverage & Smells (Linux File Specific)
+name: CI Scalability - Coverage & Smells
+
 on:
   push:
     branches: [ "main" ]
