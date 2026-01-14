@@ -137,7 +137,8 @@ jobs:
              
              MSG="> **Attenzione:** L'ultima analisi ha rilevato **$COUNT** Test Smells potenziali sui file cumulativi."
              
-             sed -i '//,//c\\n'"$MSG"'\n' README.md
+             sed -i '/<!-- TEST_SMELLS_START -->/,/<!-- TEST_SMELLS_END -->/c\<!-- TEST_SMELLS_START -->\'"$MSG"'\<!-- TEST_SMELLS_END -->' README.md
+
           else
              echo "File report vuoto o non trovato."
           fi
