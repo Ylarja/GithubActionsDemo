@@ -38,8 +38,10 @@ La seguente metrica indica la percentuale di codice coperta dal **solo test scal
 ![Coverage](HSLColor_Tests/badges/jacoco_scalability.svg)
 ![Branches](HSLColor_Tests/badges/branches_scalability.svg)
 
+### 2. Test Smells (Scalability)
+Risultati dell’analisi dei Test Smell sul singolo file di test tramite **TestSmellDetector**.
 
-Questa configurazione valuta la pipeline con **più classi di test** (baseline + test di altri studenti),
-al fine di verificare il comportamento della soluzione all’aumentare del numero di test.
 📂 **[Scarica il Report Smells (CSV)](HSLColor_Tests/smells_report.csv)**
+
+---
 
