@@ -1,4 +1,4 @@
-name: CI Scalability - Coverage & Smells
+name: CI Scalabile - Coverage & Smells
 
 on:
   push:
@@ -23,7 +23,8 @@ jobs:
           java-version: '11'
           cache: maven
 
-      # --- FASE PRELIMINARE: RINOMINA E REFACTORING ---
+      # FASE PRELIMINARE: RINOMINA E REFACTORING DEI FILE
+      # il filename deve coincidere con il nome della classe
       - name: Normalizza nomi file e Classi
         working-directory: HSLColor_Tests/src/test/java/org/example
         run: |
@@ -59,7 +60,7 @@ jobs:
             fi
           done
 
-      # --- FASE 1: TEST & COVERAGE ---
+      # FASE 1: TEST & COVERAGE 
       - name: Esegui test con Maven (Ignorando fallimenti)
         working-directory: HSLColor_Tests
         run: mvn test -Dmaven.test.failure.ignore=true -Dtest="TestHSLColor,Studente*Test"
@@ -73,7 +74,7 @@ jobs:
           coverage-badge-filename: jacoco_scalability.svg
           branches-badge-filename: branches_scalability.svg
 
-      # --- FASE 2: ANALISI TEST SMELLS ---
+      # FASE 2: ANALISI TEST SMELLS 
       - name: Analisi Test Smells (Multi-File)
         working-directory: HSLColor_Tests
         continue-on-error: true
@@ -99,7 +100,7 @@ jobs:
             touch smells_report.csv
           fi
 
-      # --- FASE 3: AGGIORNAMENTO README ---
+      # FASE 3: AGGIORNAMENTO README 
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
           if [ -s HSLColor_Tests/smells_report.csv ]; then
@@ -109,7 +110,7 @@ jobs:
             sed -i '/<!-- SCALABILITY_SMELLS_START -->/,/<!-- SCALABILITY_SMELLS_END -->/c\<!-- SCALABILITY_SMELLS_START -->\'"$MSG"'\<!-- SCALABILITY_SMELLS_END -->' README.md
           fi
 
-      # --- FASE 4: COMMIT & PUSH MANUALE (FIX DEFINITIVO) ---
+      # FASE 4: COMMIT & PUSH 
       - name: Commit & Push Report
         run: |
           git config user.name "github-actions[bot]"
