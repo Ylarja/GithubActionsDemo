@@ -1,4 +1,6 @@
-name: CI Baseline - Coverage & Smells
+name: CI Base - Coverage & Smells
+
+#WORKFLOW SOLO A SCOPO DIMOSTRATIVO - ANALISIS INIZIALE SU SINGOLO FILE DI BASE
 
 on:
   push:
@@ -23,7 +25,7 @@ jobs:
           java-version: '11'
           cache: maven
 
-      # --- FASE PRELIMINARE: ISOLAMENTO TEST BASELINE ---
+      # Isolamento Test
       - name: Isola TestHSLColor (baseline)
         working-directory: HSLColor_Tests/src/test/java/org/example
         run: |
@@ -35,7 +37,7 @@ jobs:
           done
 
 
-      # --- FASE 1: TEST & COVERAGE ---
+      # FASE 1: TEST & COVERAGE 
       - name: Esegui test con Maven
         working-directory: HSLColor_Tests
         run: mvn test
@@ -49,7 +51,7 @@ jobs:
           coverage-badge-filename: jacoco_baseline.svg
           branches-badge-filename: branches_baseline.svg
 
-      # --- FASE 2: ANALISI TEST SMELLS ---
+      # FASE 2: ANALISI TEST SMELLS 
       - name: Analisi Test Smells (File per File)
         working-directory: HSLColor_Tests
         continue-on-error: true
@@ -63,7 +65,7 @@ jobs:
             exit 1
           fi
 
-          # COSTRUZIONE PATH ASSOLUTI PER SINGOLI FILE
+          # Costruzione path assoluti 
           
           BASE_DIR="${GITHUB_WORKSPACE}/HSLColor_Tests"
           
@@ -81,7 +83,7 @@ jobs:
              exit 1
           fi
 
-          # Creiamo il CSV puntando ai FILE, non alle directory
+          # Creiamo il CSV puntando ai FILE
           # Struttura: NomeProgetto, PathFileTest, PathFileProd
           echo "HSLProject,$TEST_FILE,$PROD_FILE" > input.csv
           
@@ -101,7 +103,7 @@ jobs:
              exit 1 
            fi
            
-      # --- FASE 4: COMMIT & PUSH MANUALE ---
+      # FASE 4: COMMIT & PUSH  
       - name: Commit & Push Report (Baseline)
         if: always()
         run: |
@@ -115,7 +117,7 @@ jobs:
           git commit -m "CI (Baseline): Update Coverage & Test Smells Report" || echo "Niente da committare"
           git push
           
-      # STEP AGGIUNTIVO: Aggiorna il numero di smell nel README
+      # Aggiornamento README
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
           
@@ -129,7 +131,7 @@ jobs:
              echo "Nessun report trovato per aggiornare il Readme."
           fi
 
-
+      # Ripristino stato file di base 
       - name: Ripristina test originali
         if: always()
         working-directory: HSLColor_Tests/src/test/java/org/example
