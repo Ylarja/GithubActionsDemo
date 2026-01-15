@@ -16,12 +16,12 @@ Questa sezione rappresenta la **baseline**, ottenuta eseguendo **una sola classe
 <!-- BASE_SMELLS_START -->
 <!-- BASE_SMELLS_END -->
 
-### 1. Code Coverage (Baseline)
+### 1. Code Coverage (Base)
 La seguente metrica indica la percentuale di codice coperta dal **solo test baseline**.
 
 ### 1. Code Coverage (Baseline)
-![Coverage](HSLColor_Tests/badges/jacoco_baseline.svg)
-![Branches](HSLColor_Tests/badges/branches_baseline.svg)
+![Coverage](HSLColor_Tests/badges/jacoco_base.svg)
+![Branches](HSLColor_Tests/badges/branches_base.svg)
 
 ### 2. Test Smells (Baseline)
 Risultati dell’analisi dei Test Smell sul singolo file di test tramite **TestSmellDetector**.
