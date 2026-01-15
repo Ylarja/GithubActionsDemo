@@ -13,8 +13,8 @@ Si è cercato di validare la bontà della soluzione **all'aumentare del numero d
 
 Questa sezione rappresenta la **baseline**, ottenuta eseguendo **una sola classe di test** (`TestHSLColor.java`).
 
-<!-- BASELINE_SMELLS_START -->
-<!-- BASELINE_SMELLS_END -->
+<!-- BASE_SMELLS_START -->
+<!-- BASE_SMELLS_END -->
 
 ### 1. Code Coverage (Baseline)
 La seguente metrica indica la percentuale di codice coperta dal **solo test baseline**.
