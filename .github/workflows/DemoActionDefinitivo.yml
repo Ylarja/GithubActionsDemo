@@ -26,7 +26,7 @@ jobs:
           cache: maven
 
       # Isolamento Test
-      - name: Isola TestHSLColor (baseline)
+      - name: Isola TestHSLColor (base)
         working-directory: HSLColor_Tests/src/test/java/org/example
         run: |
           mkdir -p /tmp/other-tests
@@ -48,8 +48,8 @@ jobs:
           jacoco-csv-file: HSLColor_Tests/target/site/jacoco/jacoco.csv
           badges-directory: HSLColor_Tests/badges
           generate-branches-badge: true
-          coverage-badge-filename: jacoco_baseline.svg
-          branches-badge-filename: branches_baseline.svg
+          coverage-badge-filename: jacoco_base.svg
+          branches-badge-filename: branches_base.svg
 
       # FASE 2: ANALISI TEST SMELLS 
       - name: Analisi Test Smells (File per File)
@@ -95,8 +95,8 @@ jobs:
           
           if [ ! -z "$TARGET" ]; then 
              echo "Report generato: $TARGET"
-             mv "$TARGET" smells_baseline.csv
-             cat smells_baseline.csv
+             mv "$TARGET" smells_base.csv
+             cat smells_base.csv
           else 
              echo "Nessun report generato."
              ls -la
@@ -104,29 +104,29 @@ jobs:
            fi
            
       # FASE 4: COMMIT & PUSH  
-      - name: Commit & Push Report (Baseline)
+      - name: Commit & Push Report (Base)
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add HSLColor_Tests/smells_baseline.csv
+          git add HSLColor_Tests/smells_base.csv
           git add HSLColor_Tests/badges/*.svg || true
           git add README.md
 
-          git commit -m "CI (Baseline): Update Coverage & Test Smells Report" || echo "Niente da committare"
+          git commit -m "CI (Base): Update Coverage & Test Smells Report" || echo "Niente da committare"
           git push
           
       # Aggiornamento README
       - name: Aggiorna Conteggio Smells nel Readme
         run: |
           
-          if [ -f smells_baseline.csv ]; then
-             COUNT=$(grep -cve '^\s*$' smells_baseline.csv)
+          if [ -f smells_base.csv ]; then
+             COUNT=$(grep -cve '^\s*$' smells_base.csv)
              echo "Trovati $COUNT smell."
              
              # 2. Usiamo SED per sostituire il testo tra i tag nel READMe
-             sed -i '/<!-- BASELINE_SMELLS_START -->/,/<!-- BASELINE_SMELLS_END -->/c\<!-- BASELINE_SMELLS_START -->\> **Attenzione:** L’ultima analisi baseline ha rilevato **'"$COUNT"'** Test Smells potenziali.\<!-- BASELINE_SMELLS_END -->' README.md
+             sed -i '/<!-- BASE_SMELLS_START -->/,/<!-- BASE_SMELLS_END -->/c\<!-- BASE_SMELLS_START -->\> **Attenzione:** L’ultima analisi base ha rilevato **'"$COUNT"'** Test Smells potenziali.\<!-- BASE_SMELLS_END -->' README.md
           else
              echo "Nessun report trovato per aggiornare il Readme."
           fi
