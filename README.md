@@ -26,7 +26,7 @@ La seguente metrica indica la percentuale di codice coperta dal **solo test base
 ### 2. Test Smells (Baseline)
 Risultati dell’analisi dei Test Smell sul singolo file di test tramite **TestSmellDetector**.
 
-📂 **[Scarica il Report Baseline (CSV)](HSLColor_Tests/smells_baseline.csv)**
+📂 **[Scarica il Report Baseline (CSV)](HSLColor_Tests/smells_base.csv)**
 
 ---
 
